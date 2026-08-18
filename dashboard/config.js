@@ -1,0 +1,31 @@
+// ---------------------------------------------------------------------------
+// Edit this file after deploying the Worker. Nothing else needs changing.
+// It is loaded as a plain script, so you can edit it directly on Cloudflare
+// Pages without rebuilding anything.
+// ---------------------------------------------------------------------------
+window.CONFIG = {
+  // Cloudflare Worker router. It proxies to Render and falls back to the
+  // standby origin automatically, so the dashboard never calls Render directly.
+  API_BASE: 'https://odour-router.YOUR-SUBDOMAIN.workers.dev/api',
+
+  // HiveMQ Cloud, browser credentials (subscribe-only).
+  MQTT: {
+    enabled: true,
+    url: 'wss://YOUR-CLUSTER.s1.eu.hivemq.cloud:8884/mqtt',
+    username: 'dashboard',
+    password: 'CHANGE_ME',
+    topic: 'utem/bita/smartodour/#',
+  },
+
+  // Odour index bands. Keep these identical to the backend thresholds in
+  // worker/src/index.js or the map and the incident list will disagree.
+  BANDS: { warning: 40, hazardous: 65 },
+
+  // Must match ADMIN_TOKEN on the Render service. Only gates report generation.
+  // Anyone viewing the page can read this, so keep the token low-value and
+  // rotate it after the demo.
+  ADMIN_TOKEN: 'CHANGE_ME',
+
+  POLL_MS: 15000,
+  TZ_LABEL: 'MYT',
+};

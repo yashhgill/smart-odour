@@ -1,0 +1,8 @@
+firmware/secrets.h
+backend/.env
+backend/__pycache__/
+**/__pycache__/
+worker/node_modules/
+worker/.wrangler/
+*.pyc
+.DS_Store

@@ -1,0 +1,59 @@
+name = "odour-router"
+main = "src/index.js"
+compatibility_date = "2026-05-01"
+account_id = "52c1d557ffffc7359a34d5ddeffc037d"
+
+# Cron probe every minute -> uptime_samples + offline-node detection
+[triggers]
+crons = ["* * * * *"]
+
+# Raw telemetry archive (replaces S3)
+[[r2_buckets]]
+binding = "RAW"
+bucket_name = "smart-odour-raw"
+
+# Telemetry + operational store (replaces Neon)
+[[d1_databases]]
+binding = "DB"
+database_name = "smart-odour"
+database_id = "REPLACE_AFTER_WRANGLER_D1_CREATE"
+
+# Live fan-out to connected dashboards
+[[durable_objects.bindings]]
+name = "LIVE"
+class_name = "LiveFeed"
+
+# Password hashing runs in here rather than in the Worker. A Worker request on
+# the free plan is capped at 10ms CPU, which PBKDF2 blows through; a Durable
+# Object request gets 30s. This is what makes 210k iterations possible for free.
+[[durable_objects.bindings]]
+name = "AUTHGATE"
+class_name = "AuthGate"
+
+# MUST be new_sqlite_classes. The free plan only supports SQLite-backed
+# Durable Objects; new_classes creates the key-value backend and fails.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["LiveFeed", "AuthGate"]
+
+# Router state + alert cooldowns
+[[kv_namespaces]]
+binding = "STATE"
+id = "3153fe3b5409420c83c07c98b5e678ce"
+
+# Non-secret vars. Everything sensitive goes through `wrangler secret put`.
+[vars]
+ENVIRONMENT = "production"
+# Your Pages URL. Must be exact — credentialed CORS cannot use "*".
+ALLOWED_ORIGINS = "https://smart-odour.pages.dev"
+# See the iteration table in src/auth.js. Safe at 210000 on the free plan
+# because all hashing happens inside the AuthGate Durable Object (30s CPU).
+AUTH_ITERATIONS = "210000"   # safe on free tier: hashing runs inside AuthGate
+
+# Required secrets:
+#   wrangler secret put DEVICE_KEY            # shared HMAC secret with the ESP32
+#   wrangler secret put ADMIN_TOKEN           # gates ESG report generation
+#   wrangler secret put RESEND_API_KEY        # alert email (optional)
+#   wrangler secret put ALERT_EMAIL           # where threshold alerts go
+#   wrangler secret put TELEGRAM_BOT_TOKEN    # optional second alert channel
+#   wrangler secret put TELEGRAM_CHAT_ID

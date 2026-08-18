@@ -1,0 +1,54 @@
+# Deploy this file twice, or define both services here and let Render create both.
+# The two services are identical except for INSTANCE_ROLE / region.
+services:
+  - type: web
+    name: odour-api-primary
+    runtime: python
+    region: singapore
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: INSTANCE_ROLE
+        value: primary
+      - key: INSTANCE_REGION
+        value: singapore
+      - key: DATABASE_URL
+        sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET
+        value: smart-odour-raw
+      - key: ADMIN_TOKEN
+        sync: false
+
+  - type: web
+    name: odour-api-standby
+    runtime: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: INSTANCE_ROLE
+        value: standby
+      - key: INSTANCE_REGION
+        value: oregon
+      - key: DATABASE_URL
+        sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET
+        value: smart-odour-raw
+      - key: ADMIN_TOKEN
+        sync: false
