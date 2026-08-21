@@ -1,69 +1,54 @@
-# Telegram alerts
+# Telegram bot
 
-The Worker already sends to Telegram — the code is in `sendAlert()` in
-`worker/src/api.js`. It just needs two secrets. No bot code to write and nothing
-to host.
+Two-way. It pushes alerts, and you can query it — useful mid-demo when someone
+asks "what is the campus reading right now" and you answer from your phone.
 
-Two options. Read both before picking, because switching later means redoing
-step 3.
-
-| | Direct messages | Group |
-|---|---|---|
-| Who gets alerts | only you | everyone in the group |
-| Setup | simpler | one extra step |
-| Good for | testing, a single facility manager | the actual use case: staff, supervisor, examiner |
-
-Pick the **group** if you want "notification for all users", which is what you
-asked for. A group also demos better — you can add your supervisor to it and
-they see alerts arrive live.
+Nothing to code. The bot lives in `worker/src/telegram.js` and needs two
+secrets plus one webhook registration.
 
 ---
 
 ## 1. Create the bot
 
-In Telegram, search for **@BotFather** and start a chat.
+Message **@BotFather** in Telegram:
 
 ```
 /newbot
 ```
 
-It asks for a display name (`UTeM Odour Monitor`) and then a username, which
-must end in `bot` (`utem_odour_alert_bot`).
+Give it a display name (`UTeM Odour Monitor`) and a username ending in `bot`
+(`utem_odour_alert_bot`). BotFather returns a token like `8123456789:AAF...`.
 
-BotFather replies with a token like `8123456789:AAF...`. **That token is a
-password.** Anyone holding it controls the bot. Do not commit it, do not paste
-it into chat, do not screenshot it into your report.
+**That token is a password.** Anyone holding it controls the bot completely.
+Do not commit it, and do not screenshot it into your report.
 
----
-
-## 2. Create the group and add the bot
-
-1. Telegram → new group → name it `UTeM Odour Alerts`.
-2. Add your bot to it by its `@username`.
-3. Add the people who should receive alerts.
-
-Then send one message in the group, anything at all. The bot cannot see the
-group's id until there is at least one message.
-
----
-
-## 3. Get the chat id
-
-Open this in a browser, with your real token:
+While still in BotFather, set the command menu so the bot looks finished:
 
 ```
-https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates
+/setcommands
 ```
 
-Find `"chat":{"id":-1001234567890`. **Group ids are negative** — include the
-minus sign. A direct-message id is positive.
+Pick your bot, then paste:
 
-Nothing there? Send another message in the group and reload. Telegram only
-retains recent updates.
+```
+status - Campus air right now
+zones - Every station and its reading
+incidents - What is currently open
+quiet - Only alert me on critical
+all - Alert me on warnings too
+stop - Unsubscribe this chat
+```
 
 ---
 
-## 4. Store both secrets
+## 2. Store the secrets
+
+Generate a webhook secret — any random string. It proves inbound calls really
+came from Telegram rather than from anyone who found the URL.
+
+```bash
+openssl rand -hex 24
+```
 
 From `worker/`:
 
@@ -72,10 +57,18 @@ npx wrangler secret put TELEGRAM_BOT_TOKEN
 ```
 
 ```bash
-npx wrangler secret put TELEGRAM_CHAT_ID
+npx wrangler secret put TELEGRAM_WEBHOOK_SECRET
 ```
 
-Then redeploy so the running Worker picks them up:
+---
+
+## 3. Apply the migration and deploy
+
+```bash
+npx wrangler d1 execute smart-odour --remote -y --file=../d1/migration_004.sql
+```
+
+Push to GitHub and Cloudflare deploys automatically, or:
 
 ```bash
 npx wrangler deploy
@@ -83,25 +76,65 @@ npx wrangler deploy
 
 ---
 
-## 5. Test it without waiting for real gas
+## 4. Register the webhook
 
-Sign in to the admin portal, go to **Alerts & Thresholds**, and drop the MQ-6
-warning limit to something the seeded data already exceeds — around `400`.
-The next threshold breach fires a message.
+One call, once. Replace both placeholders:
 
-To force it immediately, post a reading above the limit using your DEVICE_KEY.
-Replace both placeholders:
+```bash
+curl "https://api.telegram.org/bot<YOUR_TOKEN>/setWebhook" \
+  -d "url=https://odour-router.yashchaal99.workers.dev/api/telegram/webhook" \
+  -d "secret_token=<YOUR_WEBHOOK_SECRET>"
+```
+
+Expect `{"ok":true,...}`. Verify:
+
+```bash
+curl "https://api.telegram.org/bot<YOUR_TOKEN>/getWebhookInfo"
+```
+
+`pending_update_count` should be 0 and `last_error_message` absent.
+
+---
+
+## 5. Subscribe
+
+Create a group, name it `UTeM Odour Alerts`, add the bot, add whoever should
+receive alerts — supervisor included, it demos well.
+
+Then send in the group:
+
+```
+/start
+```
+
+The bot replies confirming the subscription and lists its commands. That chat
+now receives alerts. Every chat that sends `/start` is added, so you never
+redeploy to add a recipient.
+
+**Groups need one extra step.** By default Telegram only shows bots messages
+that start with `/`. That is fine here, but if the bot seems deaf in a group,
+send `/setprivacy` to BotFather and disable privacy mode.
+
+---
+
+## 6. Test without waiting for real gas
+
+Post a reading above the thresholds. Replace the key:
 
 ```bash
 BODY='{"node_id":"ESP32_01","zone_id":1,"mq5":900,"mq6":1150,"mq7_1":520,"mq7_2":540,"seq":9001}'
+```
+
+```bash
 SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "YOUR_DEVICE_KEY" -hex | sed 's/.*= //')
+```
+
+```bash
 curl -X POST https://odour-router.yashchaal99.workers.dev/api/ingest -H "X-Signature: $SIG" -d "$BODY"
 ```
 
-That should land an odour index around 76 — hazardous — and push a message to
-the group within a second or two.
-
-Afterwards, set your thresholds back to sane values and delete the test reading:
+Index lands around 76 — hazardous — and the group gets a message within
+seconds. Clean up afterwards:
 
 ```bash
 npx wrangler d1 execute smart-odour --remote -y --command="delete from readings where seq = 9001"
@@ -112,30 +145,55 @@ npx wrangler d1 execute smart-odour --remote -y --command="delete from readings 
 ## What the alert looks like
 
 ```
-[CRITICAL] Odour index 76.4 — zone 1
+🔴 CRITICAL — odour index 76.4
 
-Zone 1 recorded an odour index of 76.4 at 2026-08-19T04:12:08Z.
-MQ5 900 · MQ6 1150 · CO-A 520 · CO-B 540
-Temperature 29.4C, humidity 74%.
+Zone 1 · ESP32_01
+MQ5 900   MQ6 1150
+CO-A 520  CO-B 540
+29.4°C   74% RH
+
+2026-08-21T04:12:08Z
+Open dashboard
 ```
 
 ---
 
-## Things worth knowing before the viva
+## Commands
 
-**Alerts are rate limited to one per zone per 30 minutes.** This is deliberate.
-The node reports every 8 seconds, so a sustained spike without the cooldown
-would send roughly 450 messages an hour and everyone would mute the group —
-which is the same as having no alerting at all. The cooldown lives in KV with a
-1800-second TTL, so it expires on its own.
+| | |
+|---|---|
+| `/start` | subscribe this chat |
+| `/status` | highest reading on campus right now |
+| `/zones` | all four stations with status marks |
+| `/incidents` | what is currently open |
+| `/quiet` | critical alerts only |
+| `/all` | warnings and critical |
+| `/stop` | unsubscribe |
 
-**Every send is logged to the `alert_log` table** whether it succeeded or not,
-with the failure reason. If someone asks how you know the alerts actually
-delivered, that table is the answer rather than your word.
+---
 
-**Replayed readings never alert.** When the node empties its offline buffer, the
-payload carries `replayed:true` and the threshold check is skipped. Those events
-are hours old, and paging someone about the past is a bug, not a feature.
+## Design notes worth knowing for the viva
 
-**Email is a separate channel.** If you also set `RESEND_API_KEY` and
-`ALERT_EMAIL`, both fire independently — one failing does not stop the other.
+**Subscribers live in D1, not in a secret.** The earlier version had one chat id
+in an environment variable, so adding a recipient meant a redeploy and there was
+no way to fan out. Anyone sending `/start` now registers themselves.
+
+**Alerts are capped at one per zone per 30 minutes.** The node reports every 8
+seconds; without the cooldown a sustained spike would send roughly 450 messages
+an hour and everyone would mute the group, which is the same as having no
+alerting at all. The cooldown lives in KV with a TTL, so it expires on its own.
+
+**A chat that returns 403 is deactivated, not retried.** That status means the
+bot was blocked or removed from the group — permanent, so retrying forever
+would just burn requests.
+
+**The webhook always returns 200, even on a malformed update.** Telegram retries
+any non-2xx with the same payload, so one bad message would otherwise loop
+indefinitely. Failures are written to `alert_log` instead.
+
+**Replayed readings never alert.** When the node empties its offline buffer the
+payload carries `replayed:true` and the threshold check is skipped — those
+events are hours old, and paging someone about the past is a bug.
+
+**Chat ids are truncated** in the admin subscriber list. A Telegram chat id
+identifies a person's account; there is no reason to display it in full.

@@ -10,6 +10,8 @@
 /*  Shared helpers                                                             */
 /* -------------------------------------------------------------------------- */
 
+import * as telegram from './telegram.js';
+
 export const BANDS = { warning: 40, hazardous: 65 };
 
 /** Composite odour index, 0-100. Mirrored in dashboard/app.js — keep in step. */
@@ -273,22 +275,18 @@ Temperature ${reading.temperature}C, humidity ${reading.humidity}%.`;
     }
   }
 
-  if (env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID) {
+  // Fans out to every subscribed chat whose severity floor this clears, rather
+  // than a single id baked into a secret.
+  if (env.TELEGRAM_BOT_TOKEN) {
     try {
-      const res = await fetch(
-        `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: env.TELEGRAM_CHAT_ID,
-            text: `${subject}\n\n${body}`,
-          }),
-        }
-      );
-      await log('telegram', env.TELEGRAM_CHAT_ID, res.ok, res.ok ? null : `HTTP ${res.status}`);
+      const out = await telegram.broadcast(env, {
+        severity,
+        text: telegram.alertText(env, reading, severity),
+      });
+      await log('telegram', `${out.recipients ?? 0} chats`, out.failed === 0,
+                out.failed ? `${out.failed} of ${out.recipients} failed` : null);
     } catch (err) {
-      await log('telegram', env.TELEGRAM_CHAT_ID, false, err.message);
+      await log('telegram', 'broadcast', false, err.message);
     }
   }
 }

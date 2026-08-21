@@ -50,6 +50,9 @@ ENVIRONMENT = "production"
 # Keep the pages.dev entry even after adding a custom domain — Pages preview
 # builds still resolve there and you will want them working.
 ALLOWED_ORIGINS = "https://smart-odour.pages.dev,https://odour.harnova.my"
+
+# Linked from every Telegram alert.
+DASHBOARD_URL = "https://odour.harnova.my"
 # 100000 is Cloudflare's hard ceiling for PBKDF2. Anything higher throws
 # "iteration counts above 100000 are not supported" at runtime. The code clamps
 # to this regardless, so a wrong value here degrades rather than breaks login.
@@ -64,6 +67,8 @@ COMPUTE_BASE = "https://odour-compute.onrender.com"
 #   wrangler secret put ADMIN_TOKEN           # gates ESG report generation
 #   wrangler secret put RESEND_API_KEY        # alert email (optional)
 #   wrangler secret put ALERT_EMAIL           # where threshold alerts go
-#   wrangler secret put TELEGRAM_BOT_TOKEN    # optional second alert channel
-#   wrangler secret put TELEGRAM_CHAT_ID
+#   wrangler secret put TELEGRAM_BOT_TOKEN       # from @BotFather
+#   wrangler secret put TELEGRAM_WEBHOOK_SECRET  # any random string; proves
+#                                                # inbound calls are Telegram's
+#   wrangler secret put TELEGRAM_CHAT_ID         # optional legacy single chat
 #   wrangler secret put SERVICE_TOKEN         # shared with the Render sidecar

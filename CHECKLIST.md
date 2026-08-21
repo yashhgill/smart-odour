@@ -63,18 +63,22 @@ up only as `[post] 401` with the node otherwise looking healthy.
 
 ## 3. Telegram bot
 
-Nothing to code — the sending logic is already in `worker/src/api.js`. It needs
-two secrets. Full walkthrough in `TELEGRAM.md`.
+Built and tested — two-way, with subscriptions in D1. 16 of 16 checks passing.
+Needs your bot token and one webhook registration. Walkthrough in `TELEGRAM.md`.
 
-- [ ] 🟡 @BotFather → `/newbot` → get token
-- [ ] 🟡 Create group `UTeM Odour Alerts`, add the bot, add your supervisor
-- [ ] 🟡 Send one message in the group, then open
-      `api.telegram.org/bot<TOKEN>/getUpdates` and copy the chat id
-      (**negative** for groups — easy to miss)
-- [ ] 🟡 Add both as Worker secrets, then redeploy
-- [ ] 🟡 Fire a test alert (curl snippet in `TELEGRAM.md` §5) and confirm the
-      message lands
-- [ ] 🟢 Reset thresholds afterwards and delete the test reading
+- [ ] 🟡 @BotFather → `/newbot` → copy the token
+- [ ] 🟡 @BotFather → `/setcommands` → paste the list from `TELEGRAM.md` §1
+- [ ] 🟡 `openssl rand -hex 24` for a webhook secret
+- [ ] 🟡 `wrangler secret put TELEGRAM_BOT_TOKEN` and `TELEGRAM_WEBHOOK_SECRET`
+- [ ] 🔴 Apply migration 004: `wrangler d1 execute smart-odour --remote -y --file=../d1/migration_004.sql`
+- [ ] 🟡 Register the webhook (one curl, `TELEGRAM.md` §4)
+- [ ] 🟡 Create the group, add the bot and your supervisor, send `/start`
+- [ ] 🟡 Try `/status`, `/zones`, `/incidents` — answers come from live D1
+- [ ] 🟡 Fire a test alert (`TELEGRAM.md` §6), confirm it lands, then delete the
+      test reading
+
+No chat id to hunt for anymore — `/start` registers whoever sends it, so adding
+a recipient never needs a redeploy.
 
 **Blocked by:** nothing. Can be done in parallel with hardware.
 

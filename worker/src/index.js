@@ -9,9 +9,10 @@
 import { DurableObject } from 'cloudflare:workers';
 import * as api from './api.js';
 import * as auth from './auth.js';
+import * as telegram from './telegram.js';
 
 /** Bumped on every packaged release. GET /api/version to see what is live. */
-const BUILD = '20260820-2055';
+const BUILD = '20260821-1518';
 
 /** Every route this build serves, so a missing feature is obvious at a glance. */
 const ROUTES = [
@@ -22,6 +23,7 @@ const ROUTES = [
   'PATCH /incidents/:id/acknowledge', 'PATCH /incidents/:id/resolve',
   'POST /ingest', 'GET /live', 'GET /predict', 'POST /predictions',
   'POST /model-runs', 'POST /reports/esg',
+  'POST /telegram/webhook', 'GET /telegram/subscribers',
   'GET /auth/status', 'POST /auth/bootstrap', 'POST /auth/login',
   'POST /auth/logout', 'POST /auth/register', 'POST /auth/invite', 'GET /auth/me',
 ];
@@ -123,6 +125,18 @@ export default {
         const out = new Response(res.body, res);
         for (const [k, v] of Object.entries(corsHeaders(request, env))) out.headers.set(k, v);
         return out;
+      }
+
+      /* ---------------- telegram ---------------- */
+      // Telegram posts updates here. Verified by a shared secret set at
+      // setWebhook time; without it anyone finding the URL could forge commands.
+      if (path === '/telegram/webhook' && method === 'POST') {
+        return telegram.handleWebhook(env, request);
+      }
+
+      if (path === '/telegram/subscribers' && method === 'GET') {
+        await auth.requireRole(env, request, ['admin']);
+        return json(await telegram.listSubscribers(env), request, env);
       }
 
       /* ---------------- telemetry ingest ---------------- */
