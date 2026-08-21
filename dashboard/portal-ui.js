@@ -236,5 +236,22 @@ async function renderStationMap(containerId, stations) {
   return true;
 }
 
+/**
+ * Entry choreography runs exactly once. The dashboards re-render every 30
+ * seconds when polling returns; without this guard the whole interface would
+ * re-animate on every refresh, which is nauseating on a screen someone is
+ * monitoring for an hour.
+ */
+function playEntranceOnce() {
+  if (sessionStorage.getItem('odour_entered')) return;
+  document.body.classList.add('is-loading');
+  try { sessionStorage.setItem('odour_entered', '1'); } catch { /* private mode */ }
+  // Remove the class after the longest delay + duration, so later DOM writes
+  // (new cards from a poll) are never caught by the animation rules.
+  setTimeout(() => document.body.classList.remove('is-loading'), 3200);
+}
+
+document.addEventListener('DOMContentLoaded', playEntranceOnce);
+
 // Apply the theme before first paint so there is no white flash in dark mode.
 initTheme();

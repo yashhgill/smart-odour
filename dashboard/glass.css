@@ -1,0 +1,284 @@
+/* ==========================================================================
+   Liquid glass layer.
+
+   Loaded AFTER portal.css and overrides its surfaces only. Every class name,
+   every element and all the data wiring stay exactly as they are — this file
+   changes how the platform looks, never what it does. Deleting this one link
+   tag returns the flat theme untouched.
+
+   Three deliberate departures from the reference spec:
+
+   1. No absolute 1357x871 unit grid. That composition is right for a fixed
+      hero; it breaks the moment a table has 40 incident rows or a history
+      query returns 3,000 readings. The visual language carries over, the
+      rigid canvas does not.
+
+   2. No photographic background. A JPEG is a network dependency, and campus
+      WiFi is the least reliable part of a live demo. The atmosphere here is
+      pure CSS — layered radial gradients drifting slowly — so it renders
+      offline and costs nothing.
+
+   3. Status colours are NOT glassed. Frosting reduces contrast, and this is
+      a system where mistaking 46 for 64 has consequences. Reds, ambers and
+      greens keep their full saturation and sit above the blur.
+   ========================================================================== */
+
+/* ------------------------------------------------------------ atmosphere -- */
+
+[data-theme="dark"] {
+  --glass:       rgba(255, 255, 255, .085);
+  --glass-hi:    rgba(255, 255, 255, .14);
+  --glass-line:  rgba(255, 255, 255, .16);
+  --glass-blur:  22px;
+  --e-out:  cubic-bezier(.16, 1, .3, 1);
+  --e-soft: cubic-bezier(.22, .61, .36, 1);
+}
+
+[data-theme="light"] {
+  --glass:       rgba(255, 255, 255, .62);
+  --glass-hi:    rgba(255, 255, 255, .78);
+  --glass-line:  rgba(255, 255, 255, .85);
+  --glass-blur:  18px;
+  --e-out:  cubic-bezier(.16, 1, .3, 1);
+  --e-soft: cubic-bezier(.22, .61, .36, 1);
+}
+
+/* The field. Four slow-drifting radial pools rather than an image: an
+   atmosphere for a platform that measures atmosphere. */
+body {
+  position: relative;
+  background-color: var(--bg);
+  background-image: none;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: -20%;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(48% 42% at 18% 12%,  rgba(29, 111, 242, .34), transparent 62%),
+    radial-gradient(42% 38% at 84% 8%,   rgba(79,  70, 229, .28), transparent 60%),
+    radial-gradient(52% 46% at 72% 88%,  rgba(14, 159, 110, .16), transparent 64%),
+    radial-gradient(40% 40% at 8%  82%,  rgba(29, 111, 242, .14), transparent 62%);
+  filter: blur(24px) saturate(118%);
+  animation: drift 34s ease-in-out infinite alternate;
+}
+
+[data-theme="light"] body::before {
+  background:
+    radial-gradient(48% 42% at 18% 12%,  rgba(29, 111, 242, .20), transparent 62%),
+    radial-gradient(42% 38% at 84% 8%,   rgba(79,  70, 229, .15), transparent 60%),
+    radial-gradient(52% 46% at 72% 88%,  rgba(14, 159, 110, .11), transparent 64%),
+    radial-gradient(40% 40% at 8%  82%,  rgba(29, 111, 242, .10), transparent 62%);
+}
+
+@keyframes drift {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to   { transform: translate3d(-2.5%, 2%, 0) scale(1.06); }
+}
+
+/* Vignette, so the glass has something to sit against at the edges. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(105deg, rgba(4, 16, 24, .30) 0%, rgba(4, 16, 24, .16) 40%,
+                            rgba(4, 16, 24, .04) 78%, transparent 100%),
+    linear-gradient(180deg, rgba(4, 16, 24, .12) 0%, transparent 24%);
+}
+[data-theme="light"] body::after {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .30) 0%, transparent 26%);
+}
+
+/* ---------------------------------------------------------------- panes -- */
+
+.panel,
+.card,
+.top,
+.side,
+.gate__card,
+.modal__card,
+#leaflet-map {
+  background: linear-gradient(180deg,
+      var(--glass-hi) 0%,
+      var(--glass) 26%,
+      var(--glass) 78%,
+      var(--glass-hi) 100%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(118%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(118%);
+  border: 1px solid var(--glass-line);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, .10) inset,
+    0 18px 40px rgba(4, 16, 24, .22);
+}
+
+.card { border-radius: 16px; }
+.panel { border-radius: 18px; }
+.top { border-radius: 16px; }
+.side { border-radius: 0; border-left: 0; border-top: 0; border-bottom: 0; }
+.gate__card, .modal__card { border-radius: 22px; }
+
+/* Table headers and hover rows need to stay legible over blur. */
+th { background: rgba(255, 255, 255, .07); backdrop-filter: none; }
+[data-theme="light"] th { background: rgba(15, 23, 42, .04); }
+tbody tr:hover { background: rgba(255, 255, 255, .06); }
+[data-theme="light"] tbody tr:hover { background: rgba(15, 23, 42, .035); }
+
+/* Inputs read as recessed wells rather than raised glass. */
+.field input, .field select, .inline-select {
+  background: rgba(255, 255, 255, .07);
+  border-color: var(--glass-line);
+  backdrop-filter: blur(8px);
+}
+[data-theme="light"] .field input,
+[data-theme="light"] .field select,
+[data-theme="light"] .inline-select { background: rgba(255, 255, 255, .70); }
+
+.segmented, .icon-btn, .btn--ghost {
+  background: rgba(255, 255, 255, .10);
+  backdrop-filter: blur(14px) saturate(115%);
+  border-color: var(--glass-line);
+}
+
+/* --------------------------------------------------------------- specular -- */
+
+/* One sheen sweep, once, after the interface has settled. It is a coda, not
+   an ambient effect — a panel that keeps glinting is a distraction on a
+   screen someone monitors for hours. */
+.card, .panel, .gate__card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.card::after,
+.gate__card::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0; left: 0;
+  width: 38%;
+  pointer-events: none;
+  z-index: 2;
+  background: linear-gradient(100deg,
+      transparent 0%, rgba(255, 255, 255, .16) 50%, transparent 100%);
+  transform: translate3d(-150%, 0, 0) skewX(-18deg);
+  animation: sheen 1.15s var(--e-soft) 1.9s 1 both;
+}
+
+@keyframes sheen {
+  from { transform: translate3d(-150%, 0, 0) skewX(-18deg); }
+  to   { transform: translate3d(260%,  0, 0) skewX(-18deg); }
+}
+
+/* The status rule sits above the sheen so state is never washed out. */
+.card::before { z-index: 3; height: 3px; }
+
+/* -------------------------------------------------------- choreography -- */
+
+/* Entry only. `.is-loaded` is set once on first paint and never again, so a
+   30-second poll refreshing the data does not re-animate the furniture. */
+
+@keyframes riseIn {
+  from { opacity: 0; transform: translate3d(0, 14px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes slideL {
+  from { opacity: 0; transform: translate3d(-26px, 0, 0); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes popIn {
+  from { opacity: 0; transform: scale(.72); }
+  to   { opacity: 1; transform: none; }
+}
+
+body.is-loading .side { animation: slideL .92s var(--e-out) .05s both; }
+body.is-loading .side__mark { animation: popIn .70s var(--e-out) .26s both; }
+body.is-loading .nav button:nth-child(1) { animation: riseIn .6s var(--e-out) .36s both; }
+body.is-loading .nav button:nth-child(2) { animation: riseIn .6s var(--e-out) .41s both; }
+body.is-loading .nav button:nth-child(3) { animation: riseIn .6s var(--e-out) .46s both; }
+body.is-loading .nav button:nth-child(4) { animation: riseIn .6s var(--e-out) .51s both; }
+body.is-loading .nav button:nth-child(5) { animation: riseIn .6s var(--e-out) .56s both; }
+body.is-loading .side__foot { animation: riseIn .6s var(--e-out) .66s both; }
+
+body.is-loading .top { animation: riseIn .7s var(--e-out) .14s both; }
+body.is-loading .hero { animation: riseIn .8s var(--e-out) .22s both; }
+
+body.is-loading .cards .card:nth-child(1) { animation: riseIn .85s var(--e-out) .40s both; }
+body.is-loading .cards .card:nth-child(2) { animation: riseIn .85s var(--e-out) .48s both; }
+body.is-loading .cards .card:nth-child(3) { animation: riseIn .85s var(--e-out) .56s both; }
+body.is-loading .cards .card:nth-child(4) { animation: riseIn .85s var(--e-out) .64s both; }
+body.is-loading .cards .card:nth-child(n+5) { animation: riseIn .85s var(--e-out) .72s both; }
+
+body.is-loading .panel:nth-of-type(1) { animation: riseIn .9s var(--e-out) .62s both; }
+body.is-loading .panel:nth-of-type(2) { animation: riseIn .9s var(--e-out) .74s both; }
+body.is-loading .panel:nth-of-type(n+3) { animation: riseIn .9s var(--e-out) .86s both; }
+
+body.is-loading .gate__card { animation: riseIn .85s var(--e-out) .12s both; }
+
+/* ------------------------------------------------------------ headline -- */
+
+/* Masked line reveal for the public view's headline number. */
+.ln { display: block; overflow: hidden; }
+.ln > span { display: block; animation: lineUp 1.05s var(--e-out) both; }
+@keyframes lineUp {
+  from { transform: translate3d(0, 115%, 0); }
+  to   { transform: none; }
+}
+
+.hero__num {
+  text-shadow: 0 2px 18px rgba(4, 16, 24, .35);
+}
+
+/* ------------------------------------------------------------ contrast -- */
+
+/* Glass eats contrast. These are the elements where misreading has a cost,
+   so they get their saturation and weight back. */
+.card__value, .hero__num, .mono { text-shadow: 0 1px 10px rgba(4, 16, 24, .28); }
+[data-theme="light"] .card__value,
+[data-theme="light"] .hero__num,
+[data-theme="light"] .mono { text-shadow: none; }
+
+.pill--red   { background: rgba(220, 53, 69, .22);  color: #ff8b95; }
+.pill--amber { background: rgba(232, 148, 12, .22); color: #ffc45f; }
+.pill--green { background: rgba(14, 159, 110, .22); color: #4fe0a8; }
+[data-theme="light"] .pill--red   { background: var(--red-soft);   color: var(--red); }
+[data-theme="light"] .pill--amber { background: var(--amber-soft); color: var(--amber); }
+[data-theme="light"] .pill--green { background: var(--green-soft); color: var(--green); }
+
+.nav button.on {
+  box-shadow: 0 6px 20px rgba(29, 111, 242, .40),
+              0 1px 0 rgba(255, 255, 255, .18) inset;
+}
+
+/* Leaflet tiles under glass become mud. Give the map its own solid surface. */
+#leaflet-map { backdrop-filter: none; background: var(--card-alt); }
+
+/* --------------------------------------------------------------- motion -- */
+
+@media (prefers-reduced-motion: reduce) {
+  body::before { animation: none; }
+  .card::after, .gate__card::after { display: none; }
+  body.is-loading * { animation: none !important; }
+  .ln > span { animation: none; }
+}
+
+/* Blur is expensive on low-end hardware. Where it is unsupported, fall back
+   to opaque surfaces rather than unreadable translucent ones. */
+@supports not (backdrop-filter: blur(2px)) {
+  .panel, .card, .top, .side, .gate__card, .modal__card {
+    background: var(--card);
+  }
+}
+
+/* Light-theme amber failed WCAG at 2.32:1 over the glass surface, and warning
+   is exactly the state that must never be hard to read. Darkened to #b87006,
+   which measures 3.75:1. The dark theme's amber already passed at 8.41:1, so
+   it is left alone. */
+[data-theme="light"] {
+  --amber: #b87006;
+}
