@@ -406,6 +406,7 @@ function paintIdentity() {
 
 async function enterApp() {
   showGate(false);
+  setRole(me.role, 'User Portal');
   paintIdentity();
   zones = await api('/zones');
   const opts = zones.map((z) => `<option value="${z.id}">${esc(z.code)} — ${esc(z.name)}</option>`).join('');

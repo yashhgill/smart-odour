@@ -49,6 +49,36 @@ const pillFor = (status) => status === 'hazardous' ? 'pill--red'
 /*  Login gate                                                                 */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Shown when a signed-in user lacks the role for this portal. Deliberately
+ * names the role they hold — "access denied" with no explanation just
+ * generates a support message.
+ */
+function showDenied() {
+  showGate(true);
+  const card = document.querySelector('.gate__card');
+  card.innerHTML = `
+    <div class="gate__brand">
+      <img class="gate__logo" src="assets/logo-light-full.png" alt="Smart Odour">
+      <p>Admin Portal</p>
+    </div>
+    <p class="msg msg--err" style="text-align:center;margin-bottom:6px">
+      This account does not have administrator access.
+    </p>
+    <p class="card__foot" style="text-align:center;margin-bottom:18px">
+      You are signed in as <b>${esc(me.email || '')}</b> with the
+      <b>${esc(me.role)}</b> role. Threshold calibration and user management
+      require the <b>admin</b> or <b>facility</b> role.
+    </p>
+    <a class="btn btn--wide" href="user.html">Go to the User Portal</a>
+    <p class="gate__switch"><a id="denied-logout">Sign in as someone else</a></p>`;
+  swapLogoArt(document.documentElement.getAttribute('data-theme') || 'light');
+  document.getElementById('denied-logout').addEventListener('click', async () => {
+    try { await api('/auth/logout', { method: 'POST' }); } catch { /* ignore */ }
+    location.reload();
+  });
+}
+
 function showGate(show) {
   $('gate').classList.toggle('hidden', !show);
   $('app').classList.toggle('ready', !show);
@@ -626,7 +656,16 @@ async function makeInvite() {
 /* -------------------------------------------------------------------------- */
 
 async function enterApp() {
+  // The server refuses privileged routes regardless, but rendering an admin
+  // console to a viewer and letting every panel fail is a poor answer. Refuse
+  // at the door and send them somewhere they can actually use.
+  if (!['admin', 'facility'].includes(me.role)) {
+    showDenied();
+    return;
+  }
+
   showGate(false);
+  setRole(me.role, 'Admin Portal');
   const initials = (me.full_name || me.email || '?').trim().split(/\s+/)
     .slice(0, 2).map((w) => w[0]).join('').toUpperCase();
   $('avatar').textContent = initials;

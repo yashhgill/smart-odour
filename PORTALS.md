@@ -7,8 +7,20 @@
 | `/admin.html` | facilities, admins | yes |
 
 All three share one session cookie, so signing in once covers the portals you
-have the role for. The server enforces permissions on every request; the UI
-hiding a button is convenience, not security.
+have the role for.
+
+**Who can open what.** `/admin.html` refuses any role below `facility` at the
+door, showing which role the account actually holds and a link to the user
+portal. The switcher only advertises the admin link to roles that can use it.
+
+An admin can open `/user.html` and that is intentional — an administrator is
+also a campus resident, and may want to file an odour report or see what users
+see. Nothing in the user portal is privileged.
+
+**The refusal is presentation, not security.** The server checks the role on
+every privileged route regardless of what the sidebar renders. Before this gate
+existed a viewer could open the admin console and see public data with every
+privileged panel failing — no leak, but it looked like one.
 
 ## Roles
 

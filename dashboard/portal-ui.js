@@ -37,6 +37,12 @@ function markHTML() {
        + '</div>';
 }
 
+/** Called after sign-in, when the role is finally known. */
+function setRole(role, current) {
+  window.__odourRole = role;
+  addPortalSwitcher(current, role);
+}
+
 function swapLogoArt(theme) {
   const full = document.querySelector('.gate__logo');
   if (full) full.src = `assets/logo-${theme === 'dark' ? 'dark' : 'light'}-full.png`;
@@ -117,23 +123,30 @@ function decorateChrome(subtitle) {
     if (p) p.textContent = subtitle;
   }
 
-  addPortalSwitcher(subtitle);
+  addPortalSwitcher(subtitle, window.__odourRole || null);
 }
 
 /**
- * Links between the three views so nobody has to retype a URL. Roles are
- * enforced server-side, so showing the admin link to a viewer is harmless —
- * they simply get a portal with the privileged panels refusing to load.
+ * Links between the views. The admin link is shown only to roles that can
+ * actually use it — advertising a console a viewer will be refused from is
+ * confusing, and it invites the question of whether the refusal is real.
+ *
+ * This is presentation, not security. The server checks the role on every
+ * privileged route regardless of what the sidebar chooses to render.
  */
-function addPortalSwitcher(current) {
+const ADMIN_ROLES = ['admin', 'facility'];
+
+function addPortalSwitcher(current, role) {
   const side = document.querySelector('.side');
-  if (!side || side.querySelector('.side__foot')) return;
+  if (!side) return;
+  side.querySelector('.side__foot')?.remove();
 
   const links = [
     ['Admin Portal',   'admin.html', ICONS.system],
     ['User Portal',    'user.html',  ICONS.profile],
     ['Public view',    'index.html', ICONS.map],
-  ].filter(([label]) => label !== current);
+  ].filter(([label]) => label !== current)
+   .filter(([label]) => label !== 'Admin Portal' || (role && ADMIN_ROLES.includes(role)));
 
   const foot = document.createElement('div');
   foot.className = 'side__foot';

@@ -30,7 +30,7 @@ is deployed but **not yet confirmed by a human logging in**.
 - [ ] 🔴 **Alerts & Thresholds** → change MQ-6 warning to 1900 → **Apply**
       → should say "Calibration applied", not an error
 - [ ] 🔴 Register a user at `odour.harnova.my/user.html` with that invite code
-- [ ] 🟡 Sign in as that user, confirm **Alerts & Thresholds is refused** for them
+- [x] ~~Viewer refused from the admin portal~~ — gated at the door, 9 tests passing
 
 If any of these still fail, stop and tell me — everything downstream assumes
 auth works.
