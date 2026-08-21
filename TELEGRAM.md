@@ -62,17 +62,14 @@ npx wrangler secret put TELEGRAM_WEBHOOK_SECRET
 
 ---
 
-## 3. Apply the migration and deploy
+## 3. Deploy
 
-```bash
-npx wrangler d1 execute smart-odour --remote -y --file=../d1/migration_004.sql
-```
+No migration to run. The subscriber table creates itself the first time the
+bot is used — `migration_004.sql` remains the canonical definition, but a
+forgotten migration would have surfaced as a confusing error inside a Telegram
+chat rather than a clear failure at deploy time.
 
-Push to GitHub and Cloudflare deploys automatically, or:
-
-```bash
-npx wrangler deploy
-```
+Push to GitHub and Cloudflare deploys automatically. Nothing to do here.
 
 ---
 

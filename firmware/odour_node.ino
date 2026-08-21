@@ -12,6 +12,11 @@
  *    MQ-7 (A)     AOUT  -> GPIO 34
  *    MQ-7 (B)     AOUT  -> GPIO 35
  *    LCD 16x2 I2C SDA   -> GPIO 21,  SCL -> GPIO 22,  address 0x27
+ *    5V relay IN        -> GPIO 26   (exhaust fan, active LOW by default)
+ *
+ *    The relay module takes 5V and GND from the board, but drive the FAN from
+ *    its own supply through the relay contacts. Running a fan off the ESP32's
+ *    regulator will brown it out mid-alert, which is the worst possible moment.
  *
  *    GPIO 34 and 35 are input-only and have no internal pull-ups. That is fine
  *    for analogue sensors but means you cannot drive anything from them.
@@ -45,6 +50,17 @@
 #define MQ6_PIN     33
 #define MQ7_1_PIN   34
 #define MQ7_2_PIN   35
+
+/* Exhaust relay. GPIO 26 is on ADC2, which is unusable for analogRead while
+   WiFi is active — but this is a digital output, so that restriction does not
+   apply. All four MQ sensors stay on ADC1 for exactly that reason.
+
+   Most 5V relay boards sold for Arduino are ACTIVE LOW: the coil energises
+   when the pin is pulled LOW. Set RELAY_ACTIVE_LOW to 0 if yours is the other
+   kind — if the fan runs constantly and stops during an alert, that is the
+   symptom. */
+#define RELAY_PIN        26
+#define RELAY_ACTIVE_LOW 1
 
 #define LCD_ADDRESS 0x27
 #define LCD_COLS    16
@@ -103,6 +119,52 @@ void bufferPop() {
   buffer[bufHead].used = false;
   bufHead = (bufHead + 1) % BUFFER_SLOTS;
   bufCount--;
+}
+
+/* ---------------------------------------------------------------- exhaust -- */
+/*  Automated mitigation. The relay opens when the local index crosses the
+ *  critical band and closes once it has fallen back below the warning band —
+ *  deliberately two different numbers.
+ *
+ *  A single threshold would chatter: a reading oscillating either side of 65
+ *  would switch a mains relay several times a minute and destroy it. The gap
+ *  between 65 and 40 is the hysteresis band, and MIN_RUN_MS stops a brief
+ *  spike from producing a one-second pulse.
+ *
+ *  The node decides this locally rather than waiting for the server. If WiFi
+ *  is down, the fan must still come on. */
+
+#define EXHAUST_ON_INDEX   65.0f
+#define EXHAUST_OFF_INDEX  40.0f
+#define MIN_RUN_MS         60000UL
+
+bool exhaustOn = false;
+unsigned long exhaustSince = 0;
+
+void relayWrite(bool on) {
+#if RELAY_ACTIVE_LOW
+  digitalWrite(RELAY_PIN, on ? LOW : HIGH);
+#else
+  digitalWrite(RELAY_PIN, on ? HIGH : LOW);
+#endif
+}
+
+void updateExhaust(float index) {
+  unsigned long now = millis();
+
+  if (!exhaustOn && index >= EXHAUST_ON_INDEX) {
+    exhaustOn = true;
+    exhaustSince = now;
+    relayWrite(true);
+    Serial.println(F("[exhaust] ON — critical threshold crossed"));
+    return;
+  }
+
+  if (exhaustOn && index <= EXHAUST_OFF_INDEX && (now - exhaustSince) >= MIN_RUN_MS) {
+    exhaustOn = false;
+    relayWrite(false);
+    Serial.println(F("[exhaust] OFF — cleared, minimum run time met"));
+  }
 }
 
 /* ------------------------------------------------------------------ hmac -- */
@@ -288,8 +350,9 @@ void lcdRender(const Reading& r, float idx) {
       lcd.setCursor(0, 0);
       lcd.print(WiFi.status() == WL_CONNECTED ? "WiFi OK" : "WiFi DOWN");
       lcd.setCursor(0, 1);
-      if (bufCount > 0) { lcd.print("Queued "); lcd.print(bufCount); }
-      else              { lcd.print("Synced"); }
+      if (exhaustOn)         { lcd.print("EXHAUST ON"); }
+      else if (bufCount > 0) { lcd.print("Queued "); lcd.print(bufCount); }
+      else                   { lcd.print("Synced"); }
       break;
   }
 }
@@ -317,6 +380,13 @@ void setup() {
   analogSetPinAttenuation(MQ7_1_PIN, ADC_11db);
   analogSetPinAttenuation(MQ7_2_PIN, ADC_11db);
 
+  // Drive the relay inactive BEFORE setting the pin to output. An ESP32 pin
+  // floats during boot, and on an active-low board that reads as "on" — the
+  // fan would kick for a moment every time the node resets.
+  relayWrite(false);
+  pinMode(RELAY_PIN, OUTPUT);
+  relayWrite(false);
+
   for (int i = 0; i < BUFFER_SLOTS; i++) buffer[i].used = false;
 
   wifiEnsure();
@@ -341,6 +411,7 @@ void loop() {
 
     Reading r = readSensors();
     float idx = odourIndex(r);
+    updateExhaust(idx);
     lcdRender(r, idx);
 
     char ts[24] = "";

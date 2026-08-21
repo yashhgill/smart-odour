@@ -29,8 +29,22 @@ const svgIcon = (name, cls = '') =>
 
 /* ------------------------------------------------------------------ theme -- */
 
+/** Sidebar / masthead mark. Two files because the artwork differs per theme. */
+function markHTML() {
+  return '<div class="side__mark">'
+       + '<img src="assets/logo-light-mark.png" alt="Smart Odour" class="mark--light">'
+       + '<img src="assets/logo-dark-mark.png"  alt="" class="mark--dark" aria-hidden="true">'
+       + '</div>';
+}
+
+function swapLogoArt(theme) {
+  const full = document.querySelector('.gate__logo');
+  if (full) full.src = `assets/logo-${theme === 'dark' ? 'dark' : 'light'}-full.png`;
+}
+
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
+  swapLogoArt(theme);
   try { localStorage.setItem('odour_theme', theme); } catch { /* private mode */ }
   const btn = document.getElementById('theme-toggle');
   if (btn) {
@@ -68,14 +82,18 @@ function decorateChrome(subtitle) {
 
   const brand = document.querySelector('.side__brand');
   if (brand && !brand.querySelector('.side__mark')) {
-    brand.insertAdjacentHTML('afterbegin',
-      `<div class="side__mark"><svg viewBox="0 0 24 24">${ICONS.wind}</svg></div>`);
+    brand.insertAdjacentHTML('afterbegin', markHTML());
   }
 
+  // The login card has room for the full lockup, so it gets the wordmark
+  // rather than the icon, and the heading below it is dropped to avoid
+  // saying "Smart Odour" twice.
   const gateBrand = document.querySelector('.gate__brand');
-  if (gateBrand && !gateBrand.querySelector('.gate__mark')) {
+  if (gateBrand && !gateBrand.querySelector('.gate__logo')) {
     gateBrand.insertAdjacentHTML('afterbegin',
-      `<div class="gate__mark"><svg viewBox="0 0 24 24">${ICONS.wind}</svg></div>`);
+      `<img class="gate__logo" src="assets/logo-light-full.png" alt="Smart Odour Monitoring Platform">`);
+    const h1 = gateBrand.querySelector('h1');
+    if (h1) h1.remove();
   }
 
   const who = document.querySelector('.who');

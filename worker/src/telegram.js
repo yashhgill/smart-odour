@@ -11,6 +11,37 @@
 
 const API = (token, method) => `https://api.telegram.org/bot${token}/${method}`;
 
+/**
+ * The subscriber table creates itself on first use.
+ *
+ * migration_004.sql still exists and is the canonical definition, but the bot
+ * is the only consumer and a forgotten migration would show up as a confusing
+ * runtime error in a Telegram chat rather than a clear failure at deploy time.
+ * `create table if not exists` is idempotent and the guard means it runs once
+ * per isolate, not once per message.
+ */
+let schemaReady = false;
+
+async function ensureSchema(env) {
+  if (schemaReady) return;
+  await env.DB.batch([
+    env.DB.prepare(`create table if not exists telegram_subscribers (
+      chat_id       text primary key,
+      chat_type     text not null default 'private',
+      title         text,
+      subscribed_at text not null default (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
+      active        integer not null default 1,
+      min_severity  text not null default 'warning'
+                    check (min_severity in ('warning','critical')),
+      last_error    text,
+      last_sent_at  text
+    )`),
+    env.DB.prepare(`create index if not exists idx_tg_active
+      on telegram_subscribers (active) where active = 1`),
+  ]);
+  schemaReady = true;
+}
+
 const iso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 /** Telegram's MarkdownV2 escapes a painful set of characters. */
@@ -51,6 +82,7 @@ async function send(env, chatId, text, extra = {}) {
  */
 export async function broadcast(env, { severity, text }) {
   if (!env.TELEGRAM_BOT_TOKEN) return { skipped: 'no bot token' };
+  await ensureSchema(env);
 
   const wanted = severity === 'critical' ? ['warning', 'critical'] : ['warning'];
   const { results } = await env.DB.prepare(
@@ -202,6 +234,8 @@ export async function handleWebhook(env, request) {
   let update;
   try { update = await request.json(); } catch { return new Response('ok'); }
 
+  try { await ensureSchema(env); } catch { /* reported below if it matters */ }
+
   const msg = update.message || update.channel_post;
   if (!msg || !msg.text) return new Response('ok');
 
@@ -254,6 +288,7 @@ export async function handleWebhook(env, request) {
 
 /** Admin-facing: who is currently receiving alerts. */
 export async function listSubscribers(env) {
+  await ensureSchema(env);
   const { results } = await env.DB.prepare(
     `select chat_id, chat_type, title, min_severity, active, subscribed_at,
             last_sent_at, last_error

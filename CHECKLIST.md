@@ -70,7 +70,7 @@ Needs your bot token and one webhook registration. Walkthrough in `TELEGRAM.md`.
 - [ ] 🟡 @BotFather → `/setcommands` → paste the list from `TELEGRAM.md` §1
 - [ ] 🟡 `openssl rand -hex 24` for a webhook secret
 - [ ] 🟡 `wrangler secret put TELEGRAM_BOT_TOKEN` and `TELEGRAM_WEBHOOK_SECRET`
-- [ ] 🔴 Apply migration 004: `wrangler d1 execute smart-odour --remote -y --file=../d1/migration_004.sql`
+- [x] ~~Apply migration 004~~ — not needed, the table self-creates on first use
 - [ ] 🟡 Register the webhook (one curl, `TELEGRAM.md` §4)
 - [ ] 🟡 Create the group, add the bot and your supervisor, send `/start`
 - [ ] 🟡 Try `/status`, `/zones`, `/incidents` — answers come from live D1

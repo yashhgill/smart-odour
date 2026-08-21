@@ -104,8 +104,8 @@ function tick() {
 
 document.addEventListener('DOMContentLoaded', () => {
   // Reuse the shared brand mark and theme toggle without the sidebar chrome.
-  const mark = document.querySelector('.side__mark svg');
-  if (mark) mark.innerHTML = ICONS.wind;
+  const mark = document.querySelector('.side__mark');
+  if (mark) mark.outerHTML = markHTML();
   const actions = document.querySelector('.masthead__actions');
   if (actions && !document.getElementById('theme-toggle')) {
     const btn = document.createElement('button');

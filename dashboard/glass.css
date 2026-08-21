@@ -282,3 +282,39 @@ body.is-loading .gate__card { animation: riseIn .85s var(--e-out) .12s both; }
 [data-theme="light"] {
   --amber: #b87006;
 }
+
+/* ------------------------------------------------------------------ logo -- */
+/* The mark is artwork, not a glass surface — no blur, no tint, no gradient
+   plate behind it. Two files swap on theme because the dark version has its
+   own colour treatment rather than being the light one inverted. */
+.side__mark {
+  background: none;
+  box-shadow: none;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+.side__mark img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: contain;
+}
+.mark--dark { display: none; }
+[data-theme="dark"] .mark--light { display: none; }
+[data-theme="dark"] .mark--dark  { display: block; }
+
+.gate__logo {
+  width: 210px;
+  max-width: 78%;
+  height: auto;
+  display: block;
+  margin: 0 auto 14px;
+}
+.gate__mark { display: none; }
+
+@media (max-width: 980px) {
+  .side__mark { width: 36px; height: 36px; }
+}
