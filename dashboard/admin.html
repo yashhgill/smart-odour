@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Odour — Admin Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="portal.css">
+</head>
+<body>
+
+<!-- ------------------------------------------------------------- login -- -->
+<div class="gate" id="gate">
+  <div class="gate__card">
+    <div class="gate__brand">
+      <h1>Smart Odour</h1>
+      <p id="gate-sub">Admin Portal</p>
+    </div>
+
+    <div id="form-login">
+      <div class="field"><label for="li-email">Email</label>
+        <input id="li-email" type="email" autocomplete="username"></div>
+      <div class="field"><label for="li-pass">Password</label>
+        <input id="li-pass" type="password" autocomplete="current-password"></div>
+      <button class="btn btn--wide" id="li-go">Sign in</button>
+      <p class="msg" id="li-msg"></p>
+      <p class="gate__switch">Have an invite code? <a id="to-register">Create an account</a></p>
+    </div>
+
+    <div id="form-register" style="display:none">
+      <div class="field"><label for="rg-code">Invite code</label>
+        <input id="rg-code" type="text"></div>
+      <div class="field"><label for="rg-name">Full name</label>
+        <input id="rg-name" type="text"></div>
+      <div class="field"><label for="rg-email">Email</label>
+        <input id="rg-email" type="email"></div>
+      <div class="field"><label for="rg-pass">Password</label>
+        <input id="rg-pass" type="password" autocomplete="new-password">
+        <p class="card__foot">Minimum 12 characters.</p></div>
+      <button class="btn btn--wide" id="rg-go">Create account</button>
+      <p class="msg" id="rg-msg"></p>
+      <p class="gate__switch"><a id="to-login">Back to sign in</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- --------------------------------------------------------------- app -- -->
+<div class="app" id="app">
+  <aside class="side">
+    <div class="side__brand"><h2>SMART ODOUR</h2><p>Admin Portal</p></div>
+    <nav class="nav" id="nav">
+      <button data-sec="home" class="on">Home Dashboard</button>
+      <button data-sec="data">Data &amp; Reports</button>
+      <button data-sec="ai">AI Prediction</button>
+      <button data-sec="alerts">Alerts &amp; Thresholds</button>
+      <button data-sec="system">System &amp; Admin</button>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <div class="top">
+      <div>
+        <h1 id="page-title">Admin Dashboard</h1>
+        <p id="page-sub">Smart Odour Monitoring Platform · UTeM</p>
+      </div>
+      <div class="who">
+        <div class="avatar" id="avatar">—</div>
+        <div>
+          <div class="who__name" id="who-name">—</div>
+          <div class="who__role" id="who-role">—</div>
+        </div>
+        <button class="btn btn--ghost" id="logout">Sign out</button>
+      </div>
+    </div>
+
+    <!-- HOME -->
+    <section class="section on" data-sec="home">
+      <div class="cards" id="home-cards"></div>
+      <div class="panel">
+        <div class="panel__head">
+          <div><h3>Node 01 · Hardware Telemetry</h3>
+            <p>Raw 12-bit ADC values (0–4095) from the physical node at Kolej Kediaman Lekiu.</p></div>
+          <span class="pill pill--grey" id="node-state">Awaiting</span>
+        </div>
+        <div class="cards" id="node-cards"></div>
+      </div>
+      <div class="panel">
+        <div class="panel__head"><div><h3>All stations</h3>
+          <p>Zone 1 is physical hardware. Zones 2–4 replay recorded campus data.</p></div></div>
+        <table><thead><tr><th>Zone</th><th>Type</th><th>Odour index</th>
+          <th>Status</th><th>MQ-6</th><th>Last reading</th></tr></thead>
+          <tbody id="zones-body"></tbody></table>
+      </div>
+    </section>
+
+    <!-- DATA -->
+    <section class="section" data-sec="data">
+      <div class="panel">
+        <div class="panel__head"><div><h3>Query database</h3>
+          <p>Select a station and window to inspect recorded readings.</p></div></div>
+        <div class="thr">
+          <div class="field"><label for="q-zone">Station</label><select id="q-zone"></select></div>
+          <div class="field"><label for="q-hours">Window</label><select id="q-hours">
+            <option value="6">Last 6 hours</option>
+            <option value="24" selected>Last 24 hours</option>
+            <option value="168">Last 7 days</option>
+            <option value="720">Last 30 days</option></select></div>
+        </div>
+        <button class="btn" id="q-go">Query logs</button>
+      </div>
+      <div class="panel">
+        <div class="panel__head"><div><h3>Readings</h3>
+          <p id="q-count">No query run yet.</p></div></div>
+        <div style="max-height:430px;overflow:auto">
+          <table><thead><tr><th>Timestamp</th><th>Index</th><th>MQ-5</th><th>MQ-6</th>
+            <th>CO A</th><th>CO B</th><th>Temp</th><th>RH</th></tr></thead>
+            <tbody id="q-body"><tr><td colspan="8" class="empty">Run a query to load readings.</td></tr></tbody></table>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel__head"><div><h3>Generated ESG reports</h3>
+          <p>Compiles every station reading over the period into a signed PDF and archives a copy in object storage.</p></div></div>
+        <div class="grid2">
+          <div class="field"><label for="esg-days">Reporting period</label>
+            <select id="esg-days">
+              <option value="7">Last 7 days</option>
+              <option value="30" selected>Last 30 days</option>
+              <option value="90">Last 90 days</option>
+            </select></div>
+          <div class="field"><label>&nbsp;</label>
+            <button class="btn btn--green" id="esg-go">Generate PDF</button></div>
+        </div>
+        <p class="msg" id="esg-msg"></p>
+        <div id="reports-list" class="empty">No reports generated yet.</div>
+      </div>
+    </section>
+
+    <!-- AI -->
+    <section class="section" data-sec="ai">
+      <div class="cards" id="ai-cards"></div>
+      <div class="panel">
+        <div class="panel__head">
+          <div><h3>Forecast trajectory</h3>
+            <p id="ai-sub">Projected odour index for the next three hours.</p></div>
+          <select id="ai-zone" class="inline-select" style="max-width:230px"></select>
+        </div>
+        <svg id="ai-chart" viewBox="0 0 760 250" role="img"
+             aria-label="Forecast odour index with uncertainty band"></svg>
+      </div>
+      <div class="grid2 grid2--top">
+        <div class="panel">
+          <div class="panel__head"><div><h3>Feature importance</h3>
+            <p>What the fitted model is actually keying on.</p></div></div>
+          <div id="ai-features"><p class="empty">No model fitted yet.</p></div>
+        </div>
+        <div class="panel">
+          <div class="panel__head"><div><h3>Model runs</h3>
+            <p>The forecaster runs every 15 minutes on the compute service.</p></div></div>
+          <div id="ai-runs"><p class="empty">No runs recorded yet.</p></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel__head"><div><h3>Forecast points</h3></div></div>
+        <table><thead><tr><th>Horizon</th><th>Predicted</th><th>Range</th>
+          <th>Status</th></tr></thead>
+          <tbody id="ai-table"><tr><td colspan="4" class="empty">No forecast available.</td></tr></tbody></table>
+      </div>
+    </section>
+
+    <!-- ALERTS -->
+    <section class="section" data-sec="alerts">
+      <div class="cards" id="alert-cards"></div>
+      <div class="panel">
+        <div class="panel__head"><div><h3>Hardware sensor calibration limits</h3>
+          <p>Raw ADC trigger points, 0–4095. The warning limit must sit below the critical
+             limit, or the warning tier can never fire.</p></div>
+          <span class="pill pill--grey" id="thr-state">Loading</span></div>
+        <div id="thr-form"></div>
+        <div style="display:flex;gap:9px;margin-top:6px">
+          <button class="btn btn--ghost" id="thr-reset">Restore defaults</button>
+          <button class="btn btn--green" id="thr-save">Apply calibration</button>
+        </div>
+        <p class="msg" id="thr-msg"></p>
+      </div>
+      <div class="panel">
+        <div class="panel__head"><div><h3>Incidents</h3>
+          <p>Threshold breaches, offline nodes, and their acknowledgement trail.</p></div></div>
+        <table><thead><tr><th>Opened</th><th>Kind</th><th>Severity</th>
+          <th>Message</th><th>Status</th><th></th></tr></thead>
+          <tbody id="inc-body"></tbody></table>
+      </div>
+    </section>
+
+    <!-- SYSTEM -->
+    <section class="section" data-sec="system">
+      <div class="cards" id="sys-cards"></div>
+      <div class="panel">
+        <div class="panel__head"><div><h3>User access management</h3>
+          <p>Registration is invite-only by design. There is no open signup route, so an
+             account can only exist if an admin issued a code for it.</p></div>
+          <button class="btn" id="mk-invite">Create invite</button></div>
+        <table><thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Created</th></tr></thead>
+          <tbody id="users-body"></tbody></table>
+        <p class="msg" id="invite-msg"></p>
+      </div>
+      <div class="panel">
+        <div class="panel__head"><div><h3>Outstanding invites</h3>
+          <p>Codes expire after 72 hours and can each be used once.</p></div></div>
+        <table><thead><tr><th>Code</th><th>Role</th><th>Expires</th><th>Status</th></tr></thead>
+          <tbody id="invites-body"></tbody></table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="portal-ui.js"></script>
+<script src="config.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

@@ -6,11 +6,13 @@
 window.CONFIG = {
   // Cloudflare Worker router. It proxies to Render and falls back to the
   // standby origin automatically, so the dashboard never calls Render directly.
-  API_BASE: 'https://odour-router.YOUR-SUBDOMAIN.workers.dev/api',
+  API_BASE: 'https://odour-router.yashchaal99.workers.dev/api',
 
-  // HiveMQ Cloud, browser credentials (subscribe-only).
+  // MQTT is gone — the architecture is HTTPS ingest plus a Durable Object
+  // WebSocket now. Left disabled here rather than deleted so the fallback
+  // polling path stays obvious. The WebSocket client replaces this next.
   MQTT: {
-    enabled: true,
+    enabled: false,
     url: 'wss://YOUR-CLUSTER.s1.eu.hivemq.cloud:8884/mqtt',
     username: 'dashboard',
     password: 'CHANGE_ME',
@@ -24,8 +26,9 @@ window.CONFIG = {
   // Must match ADMIN_TOKEN on the Render service. Only gates report generation.
   // Anyone viewing the page can read this, so keep the token low-value and
   // rotate it after the demo.
-  ADMIN_TOKEN: 'CHANGE_ME',
+  // Not used yet: report generation is not wired in this build.
+  ADMIN_TOKEN: '',
 
-  POLL_MS: 15000,
+  POLL_MS: 30000,   // 30s keeps two open tabs inside the free-tier request cap
   TZ_LABEL: 'MYT',
 };

@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: odour-compute
+    runtime: python
+    region: singapore
+    plan: free
+    rootDir: api
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: WORKER_BASE
+        value: https://odour-router.yashchaal99.workers.dev/api
+      - key: SERVICE_TOKEN
+        sync: false            # set in the Render dashboard, must match the Worker
+      # Two weeks of context. Below ~500 readings the model falls back to a
+      # linear trend; 15-minute replay data needs this long to clear that bar.
+      # Live hardware at 8s intervals hits the 5000-row cap regardless.
+      - key: FORECAST_HOURS
+        value: "336"
+      - key: PYTHON_VERSION
+        value: "3.12.7"

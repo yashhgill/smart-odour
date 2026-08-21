@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Odour — Student Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="portal.css">
+</head>
+<body>
+
+<div class="gate" id="gate">
+  <div class="gate__card">
+    <div class="gate__brand"><h1>Smart Odour</h1><p id="gate-sub">Student Portal</p></div>
+
+    <div id="form-login">
+      <div class="field"><label for="li-email">Email</label>
+        <input id="li-email" type="email" autocomplete="username"></div>
+      <div class="field"><label for="li-pass">Password</label>
+        <input id="li-pass" type="password" autocomplete="current-password"></div>
+      <button class="btn btn--wide" id="li-go">Sign in</button>
+      <p class="msg" id="li-msg"></p>
+      <p class="gate__switch">Have an invite code? <a id="to-register">Create an account</a></p>
+      <p class="gate__switch"><a href="./">View campus air quality without signing in</a></p>
+    </div>
+
+    <div id="form-register" style="display:none">
+      <div class="field"><label for="rg-code">Invite code</label><input id="rg-code" type="text"></div>
+      <div class="field"><label for="rg-name">Full name</label><input id="rg-name" type="text"></div>
+      <div class="field"><label for="rg-email">Email</label><input id="rg-email" type="email"></div>
+      <div class="field"><label for="rg-pass">Password</label>
+        <input id="rg-pass" type="password" autocomplete="new-password">
+        <p class="card__foot">Minimum 12 characters.</p></div>
+      <button class="btn btn--wide" id="rg-go">Create account</button>
+      <p class="msg" id="rg-msg"></p>
+      <p class="gate__switch"><a id="to-login">Back to sign in</a></p>
+    </div>
+  </div>
+</div>
+
+<div class="app" id="app">
+  <aside class="side">
+    <div class="side__brand"><h2>SMART ODOUR</h2><p>Student Portal</p></div>
+    <nav class="nav" id="nav">
+      <button data-sec="home" class="on">Home &amp; Live Data</button>
+      <button data-sec="map">Campus Map &amp; Alerts</button>
+      <button data-sec="history">Air Quality History</button>
+      <button data-sec="profile">Profile Settings</button>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <div class="top">
+      <div><h1 id="page-title">Campus Air Quality</h1>
+        <p id="page-sub">Live tracking for UTeM Main Campus, Durian Tunggal</p></div>
+      <div class="who">
+        <div class="avatar" id="avatar">—</div>
+        <div><div class="who__name" id="who-name">—</div>
+          <div class="who__role" id="who-role">—</div></div>
+        <button class="btn btn--ghost" id="logout">Sign out</button>
+      </div>
+    </div>
+
+    <!-- HOME -->
+    <section class="section on" data-sec="home">
+      <div class="cards">
+        <div class="card">
+          <div class="card__label">Your current zone</div>
+          <div class="card__value" style="font-size:17px" id="my-zone">—</div>
+          <div class="card__foot mono" id="my-coords">—</div>
+          <div style="margin-top:11px"><select id="zone-pick" class="inline-select"></select></div>
+        </div>
+        <div class="card">
+          <div class="card__label">Live odour tracker</div>
+          <div class="card__value" id="live-idx">—</div>
+          <div class="card__foot" id="live-sub">waiting for data</div>
+        </div>
+        <div class="card">
+          <div class="card__label">Tomorrow's prediction</div>
+          <div class="card__value" style="font-size:17px">Not available</div>
+          <div class="card__foot">Forecasting needs the weather binding, which is not
+            deployed. No number is shown rather than a guessed one.</div>
+        </div>
+        <div class="card card--action">
+          <div class="card__label">Community watch</div>
+          <div class="card__foot" style="margin:8px 0 12px">Smelled something the sensors
+            missed? The network has four nodes; the campus has more than four places that
+            can smell.</div>
+          <button class="btn btn--amber" id="open-report">Report odour</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel__head">
+          <div><h3>Live environmental stream</h3>
+            <p id="stream-sub">Recent readings for the selected zone.</p></div>
+          <span class="pill pill--grey" id="stream-state">Polling</span>
+        </div>
+        <svg id="stream" viewBox="0 0 760 220" role="img"
+             aria-label="Odour index over recent hours"></svg>
+      </div>
+    </section>
+
+    <!-- MAP -->
+    <section class="section" data-sec="map">
+      <div class="panel">
+        <div class="panel__head"><div><h3>Campus stations</h3>
+          <p>Live station positions on OpenStreetMap. Halo size scales with the reading. Falls back to a drawn map if tiles cannot load.</p></div></div>
+        <div id="leaflet-map" role="img" aria-label="Campus map of monitoring stations"></div>
+        <svg id="map" viewBox="0 0 620 420" role="img" style="display:none"
+             aria-label="Campus map of monitoring stations (fallback)"></svg>
+        <div class="map-legend">
+          <span><i style="background:#0e9f6e"></i> Normal</span>
+          <span><i style="background:#e8940c"></i> Warning</span>
+          <span><i style="background:#dc3545"></i> Hazardous</span>
+          <span><i style="background:#94a3b8"></i> Offline</span>
+          <span>Solid marker = physical hardware, outlined = replayed</span>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel__head"><div><h3>Public advisories</h3>
+          <p>Open incidents affecting the campus.</p></div></div>
+        <div id="advisories"><p class="empty">No active advisories.</p></div>
+      </div>
+      <div class="panel">
+        <div class="panel__head"><div><h3>Safe route guidance</h3>
+          <p>Not built. Routing needs the dispersion forecast, which is not deployed —
+             and a route that claims to avoid a plume without modelling one would be
+             worse than no route at all.</p></div></div>
+      </div>
+    </section>
+
+    <!-- HISTORY -->
+    <section class="section" data-sec="history">
+      <div class="panel">
+        <div class="panel__head"><div><h3>Filter historical records</h3>
+          <p>Verified logs suitable for student council reports or health assessments.</p></div>
+          <button class="btn btn--ghost" id="csv">Export CSV</button></div>
+        <div class="grid2">
+          <div class="field"><label for="h-zone">Campus zone</label><select id="h-zone"></select></div>
+          <div class="field"><label for="h-hours">Window</label><select id="h-hours">
+            <option value="24">Last 24 hours</option>
+            <option value="168" selected>Last 7 days</option>
+            <option value="720">Last 30 days</option></select></div>
+        </div>
+        <button class="btn" id="h-go">Query logs</button>
+      </div>
+      <div class="panel">
+        <div class="panel__head"><div><h3>Air quality trend</h3>
+          <p id="h-sub">Run a query to load readings.</p></div></div>
+        <svg id="hist" viewBox="0 0 760 240" role="img" aria-label="Historical odour index"></svg>
+      </div>
+      <div class="panel">
+        <div class="panel__head"><div><h3>Daily peaks</h3></div></div>
+        <table><thead><tr><th>Date</th><th>Peak index</th><th>Status</th>
+          <th>Peak MQ-6</th><th>Readings</th></tr></thead>
+          <tbody id="peaks"><tr><td colspan="5" class="empty">No data loaded.</td></tr></tbody></table>
+      </div>
+    </section>
+
+    <!-- PROFILE -->
+    <section class="section" data-sec="profile">
+      <div class="grid2 grid2--top">
+        <div class="panel">
+          <div class="panel__head"><div><h3>Account identity</h3></div></div>
+          <div class="field"><label for="pf-name">Full name</label><input id="pf-name" type="text"></div>
+          <div class="field"><label for="pf-email">Registered email</label>
+            <input id="pf-email" type="email" disabled>
+            <p class="card__foot">Email cannot be changed here — it identifies your account.</p></div>
+
+          <div class="panel__head" style="margin-top:18px"><div><h3>Alert preferences</h3>
+            <p>How you are notified about hazardous readings.</p></div></div>
+          <label class="toggle"><input type="checkbox" id="pf-dash" checked>
+            <span>Dashboard warnings</span></label>
+          <label class="toggle"><input type="checkbox" id="pf-tg">
+            <span>Telegram group alerts</span></label>
+          <label class="toggle"><input type="checkbox" id="pf-mail">
+            <span>Email alerts</span></label>
+          <p class="card__foot" style="margin-top:8px">Telegram and email are group
+            channels set up by an administrator. These switches record your preference;
+            they do not subscribe you on their own.</p>
+
+          <button class="btn btn--green" id="pf-save" style="margin-top:14px">Update profile</button>
+          <p class="msg" id="pf-msg"></p>
+        </div>
+
+        <div class="panel">
+          <div class="panel__head"><div><h3>About this system</h3></div></div>
+          <h4 class="sub">Hardware</h4>
+          <ul class="spec">
+            <li><b>Microcontroller</b> ESP32 edge device</li>
+            <li><b>Gas detection</b> MQ-5 (LPG/gas), MQ-6 (butane), MQ-7 ×2 (CO)</li>
+            <li><b>Ambient</b> DHT11 temperature and humidity</li>
+            <li><b>Actuator</b> 5V relay to exhaust ventilation</li>
+          </ul>
+          <h4 class="sub">Platform</h4>
+          <ul class="spec">
+            <li><b>Ingest</b> HTTPS with HMAC-SHA256 request signing</li>
+            <li><b>Compute</b> Cloudflare Workers, edge deployed</li>
+            <li><b>Database</b> Cloudflare D1</li>
+            <li><b>Archive</b> Cloudflare R2, every raw payload retained</li>
+            <li><b>Alerts</b> Telegram and email, rate limited per zone</li>
+          </ul>
+          <p class="card__foot">Readings are signed at the node, so a measurement cannot
+            be forged by anyone who merely finds the endpoint.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- report dialog -->
+<div class="modal" id="modal">
+  <div class="modal__card">
+    <h3>Report an odour</h3>
+    <p class="card__foot" style="margin:6px 0 14px">This is logged as a human observation
+      and reviewed by facilities. It is kept separate from sensor measurements and never
+      mixed into the charts.</p>
+    <div class="field"><label for="rp-zone">Nearest zone</label><select id="rp-zone"></select></div>
+    <div class="field"><label for="rp-sev">Strength</label><select id="rp-sev">
+      <option value="faint">Faint</option>
+      <option value="moderate" selected>Moderate</option>
+      <option value="strong">Strong</option>
+      <option value="overpowering">Overpowering</option></select></div>
+    <div class="field"><label for="rp-desc">What does it smell like? (optional)</label>
+      <input id="rp-desc" type="text" maxlength="200"></div>
+    <p class="msg" id="rp-msg"></p>
+    <div style="display:flex;gap:9px;justify-content:flex-end;margin-top:8px">
+      <button class="btn btn--ghost" id="rp-cancel">Cancel</button>
+      <button class="btn btn--amber" id="rp-send">Submit report</button>
+    </div>
+  </div>
+</div>
+
+<script src="portal-ui.js"></script>
+<script src="config.js"></script>
+<script src="user.js"></script>
+</body>
+</html>

@@ -10,6 +10,22 @@ import { DurableObject } from 'cloudflare:workers';
 import * as api from './api.js';
 import * as auth from './auth.js';
 
+/** Bumped on every packaged release. GET /api/version to see what is live. */
+const BUILD = '20260820-2055';
+
+/** Every route this build serves, so a missing feature is obvious at a glance. */
+const ROUTES = [
+  'GET /health', 'GET /version', 'GET /zones', 'GET /latest', 'GET /readings',
+  'GET /uptime', 'GET /incidents', 'GET /reports', 'GET /thresholds',
+  'PUT /thresholds', 'GET /users', 'GET /invites', 'GET /profile',
+  'PATCH /profile', 'POST /odour-reports', 'GET /odour-reports',
+  'PATCH /incidents/:id/acknowledge', 'PATCH /incidents/:id/resolve',
+  'POST /ingest', 'GET /live', 'GET /predict', 'POST /predictions',
+  'POST /model-runs', 'POST /reports/esg',
+  'GET /auth/status', 'POST /auth/bootstrap', 'POST /auth/login',
+  'POST /auth/logout', 'POST /auth/register', 'POST /auth/invite', 'GET /auth/me',
+];
+
 /* -------------------------------------------------------------------------- */
 /*  Response helpers                                                           */
 /* -------------------------------------------------------------------------- */
@@ -89,6 +105,10 @@ export default {
         return env.LIVE.get(env.LIVE.idFromName('global')).fetch(request);
       }
 
+      if (path === '/auth/status' && method === 'GET') {
+        return json(await api.authStatus(env), request, env);
+      }
+
       /* ---------------- auth, delegated to the Durable Object -------------- */
       if (path.startsWith('/auth/')) {
         const stub = env.AUTHGATE.get(env.AUTHGATE.idFromName('global'));
@@ -136,6 +156,16 @@ export default {
       if (path === '/health') {
         return json({ ok: true, ts: new Date().toISOString() }, request, env);
       }
+
+      // Answers "is the code I just deployed actually running?" without
+      // guessing from upload sizes. BUILD changes with every packaged release.
+      if (path === '/version') {
+        return json({
+          build: BUILD,
+          routes: ROUTES,
+          bootstrapped_check: '/api/auth/status',
+        }, request, env);
+      }
       if (path === '/zones')    return json(await api.getZones(env), request, env);
       if (path === '/latest')   return json(await api.getLatest(env), request, env);
       if (path === '/readings') return json(await api.getReadings(env, url), request, env);
@@ -147,7 +177,132 @@ export default {
         return json(await api.getReports(env, url), request, env);
       }
 
+      if (path === '/thresholds' && method === 'GET') {
+        return json(await api.getThresholds(env), request, env);
+      }
+
       /* ---------------- authenticated actions ---------------- */
+      if (path === '/thresholds' && method === 'PUT') {
+        await auth.requireRole(env, request, ['admin']);
+        const out = await api.setThresholds(env, await request.json());
+        return out.error
+          ? json(out, request, env, 400)
+          : json(out, request, env);
+      }
+
+      if (path === '/odour-reports' && method === 'POST') {
+        // Signing in is required, so a report is attributable. An anonymous
+        // endpoint here would be an open spam target.
+        const user = await auth.requireRole(env, request, null);
+        const out = await api.createOdourReport(env, user, await request.json());
+        return out.error ? json(out, request, env, 400) : json(out, request, env, 201);
+      }
+
+      if (path === '/odour-reports' && method === 'GET') {
+        await auth.requireRole(env, request, ['admin', 'facility']);
+        return json(await api.listOdourReports(env, url), request, env);
+      }
+
+      if (path === '/profile' && method === 'GET') {
+        const user = await auth.requireRole(env, request, null);
+        return json(await api.getProfile(env, user), request, env);
+      }
+
+      if (path === '/profile' && method === 'PATCH') {
+        const user = await auth.requireRole(env, request, null);
+        return json(await api.updateProfile(env, user, await request.json()), request, env);
+      }
+
+      /* ---------------- forecasts ---------------- */
+      if (path === '/predict' && method === 'GET') {
+        return json(await api.getPrediction(env, url), request, env);
+      }
+
+      // Written only by the Render sidecar, authenticated with a shared token
+      // rather than a user session: there is no human in this loop.
+      if (path === '/predictions' && method === 'POST') {
+        if (!api.serviceTokenValid(env, request)) {
+          return json({ error: 'invalid service token' }, request, env, 401);
+        }
+        const out = await api.storePredictions(env, await request.json());
+        return out.error ? json(out, request, env, 400) : json(out, request, env, 201);
+      }
+
+      if (path === '/model-runs' && method === 'POST') {
+        if (!api.serviceTokenValid(env, request)) {
+          return json({ error: 'invalid service token' }, request, env, 401);
+        }
+        return json(await api.recordModelRun(env, await request.json()), request, env, 201);
+      }
+
+      /* ---------------- ESG report ---------------- */
+      // Generated on the sidecar (ReportLab is Python), streamed back through
+      // here so the browser only ever talks to one origin, and archived to R2.
+      if (path === '/reports/esg' && method === 'POST') {
+        await auth.requireRole(env, request, ['admin', 'facility']);
+        if (!env.COMPUTE_BASE) {
+          return json({ error: 'COMPUTE_BASE is not configured' }, request, env, 503);
+        }
+
+        const days = Math.min(365, Math.max(1, parseInt(url.searchParams.get('days'), 10) || 30));
+        let upstream;
+        try {
+          upstream = await fetch(`${env.COMPUTE_BASE}/esg-report?days=${days}`, {
+            method: 'POST',
+            headers: { 'X-Service-Token': env.SERVICE_TOKEN || '' },
+          });
+        } catch (err) {
+          // Render's free tier sleeps; the first call after idle can time out.
+          return json({
+            error: 'The reporting service did not respond. It may be waking up — try again in about a minute.',
+            detail: String(err && err.message),
+          }, request, env, 504);
+        }
+
+        if (!upstream.ok) {
+          return json({ error: `reporting service returned ${upstream.status}` },
+                      request, env, 502);
+        }
+
+        const pdf = await upstream.arrayBuffer();
+        const key = `reports/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.pdf`;
+
+        ctx.waitUntil((async () => {
+          try {
+            await env.RAW.put(key, pdf, { httpMetadata: { contentType: 'application/pdf' } });
+            await env.DB.prepare(
+              `insert into reports (id, title, period_start, period_end, r2_key, generated_by)
+               values (?1,?2,?3,?4,?5,?6)`
+            ).bind(
+              crypto.randomUUID(),
+              `ESG Odour Report — ${days} days`,
+              new Date(Date.now() - days * 86400000).toISOString(),
+              new Date().toISOString(),
+              key, 'dashboard'
+            ).run();
+          } catch { /* archiving must not fail the download */ }
+        })());
+
+        return new Response(pdf, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename="ESG_Odour_Report_${days}d.pdf"`,
+            ...corsHeaders(request, env),
+          },
+        });
+      }
+
+      if (path === '/users' && method === 'GET') {
+        await auth.requireRole(env, request, ['admin']);
+        return json(await api.listUsers(env), request, env);
+      }
+
+      if (path === '/invites' && method === 'GET') {
+        await auth.requireRole(env, request, ['admin']);
+        return json(await api.listInvites(env), request, env);
+      }
+
       const ack = path.match(/^\/incidents\/([\w-]+)\/(acknowledge|resolve)$/);
       if (ack && method === 'PATCH') {
         await auth.requireRole(env, request, ['admin', 'facility']);
@@ -171,6 +326,20 @@ export default {
 
   async scheduled(event, env, ctx) {
     ctx.waitUntil(api.runCron(env));
+
+    // The cron fires every minute for health sampling. Forecasting is far more
+    // expensive and the data barely moves in 60 seconds, so it runs on the
+    // quarter hour. This also keeps Render's free instance warm, which is what
+    // stops a demo hitting a 50-second cold start.
+    const minute = new Date(event.scheduledTime).getUTCMinutes();
+    if (minute % 15 === 0 && env.COMPUTE_BASE) {
+      ctx.waitUntil(
+        fetch(`${env.COMPUTE_BASE}/run-forecast`, {
+          method: 'POST',
+          headers: { 'X-Service-Token': env.SERVICE_TOKEN || '' },
+        }).catch(() => { /* sidecar down: forecasts go stale, nothing breaks */ })
+      );
+    }
   },
 };
 

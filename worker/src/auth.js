@@ -17,25 +17,40 @@
  */
 
 /**
- * Iteration count, measured against the Workers CPU limit:
+ * PBKDF2 cost.
  *
- *    10,000 ->   ~8 ms   fits the 10 ms free-tier CPU cap
- *    50,000 ->  ~22 ms   needs Workers Paid
- *   210,000 ->  ~95 ms   needs Workers Paid  (OWASP 2023 minimum)
- *   600,000 -> ~265 ms   needs Workers Paid  (OWASP 2023 recommended)
+ * Cloudflare's WebCrypto hard-caps PBKDF2 at 100,000 iterations and throws
+ * "iteration counts above 100000 are not supported" beyond it. This is a
+ * platform restriction, not a CPU budget — raising the plan does not lift it.
  *
- * On the free plan a login at 210k iterations is killed mid-request, so this
- * is read from env and must be set deliberately. Default assumes Workers Paid.
- * If you stay on free, set AUTH_ITERATIONS = "10000" and be aware that this is
- * materially weaker than current guidance — say so in the report rather than
- * quoting an iteration count you are not actually using.
+ * Note for anyone testing locally: `wrangler dev` runs Miniflare, which uses
+ * Node's WebCrypto and happily accepts 210,000. A value that works locally can
+ * still 500 in production. That is exactly how this bug shipped.
+ *
+ * 100,000 sits below OWASP's 2023 recommendation of 600,000 for
+ * PBKDF2-HMAC-SHA256. It is the most the platform allows, and it is paired
+ * with a 12-character minimum, per-email lockout after 5 failures, and
+ * server-side rate limiting. Say that plainly in the report rather than
+ * quoting a number the runtime will not execute.
  */
-const DEFAULT_ITERATIONS = 210_000;
+const MAX_ITERATIONS = 100_000;
+const DEFAULT_ITERATIONS = 100_000;
 const SESSION_HOURS = 12;
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 15;
 
 const enc = new TextEncoder();
+
+/**
+ * Never let a configured value exceed what the runtime accepts. Clamping keeps
+ * a misconfiguration to "slightly weaker hashing" instead of "nobody can log
+ * in", which is the failure mode that took this build down.
+ */
+function safeIterations(env) {
+  const requested = parseInt(env?.AUTH_ITERATIONS, 10);
+  if (!Number.isFinite(requested) || requested < 1) return DEFAULT_ITERATIONS;
+  return Math.min(requested, MAX_ITERATIONS);
+}
 const iso = (d = new Date()) => d.toISOString().replace(/\.\d{3}Z$/, 'Z');
 const plusHours = (h) => iso(new Date(Date.now() + h * 3600_000));
 
@@ -56,7 +71,7 @@ async function pbkdf2(password, salt, iterations) {
 }
 
 export async function hashPassword(password, env = {}) {
-  const iterations = parseInt(env.AUTH_ITERATIONS, 10) || DEFAULT_ITERATIONS;
+  const iterations = safeIterations(env);
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const bits = await pbkdf2(password, salt, iterations);
   // The cost is stored with the hash, so raising it later leaves existing
@@ -68,7 +83,10 @@ export async function verifyPassword(password, stored) {
   try {
     const [scheme, iterations, salt, expected] = stored.split('$');
     if (scheme !== 'pbkdf2') return false;
-    const bits = await pbkdf2(password, unb64(salt), parseInt(iterations, 10));
+    // Clamp on read too. A hash written before the cap was known records
+    // 210000, and verifying it as-is would throw the same platform error.
+    const cost = Math.min(parseInt(iterations, 10) || DEFAULT_ITERATIONS, MAX_ITERATIONS);
+    const bits = await pbkdf2(password, unb64(salt), cost);
     return timingSafeEqual(new Uint8Array(bits), unb64(expected));
   } catch {
     return false;
@@ -102,9 +120,20 @@ function cookieValue(header, name) {
 }
 
 function sessionCookie(token, maxAgeSeconds) {
-  // HttpOnly stops XSS reading it, SameSite=Strict stops CSRF, Secure keeps it
-  // off plaintext HTTP. Path=/ so the whole API sees it.
-  return `odour_session=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${maxAgeSeconds}`;
+  // SameSite=None is required, not preferred. The dashboard is served from
+  // pages.dev and this API from workers.dev — different registrable domains,
+  // so a Strict or Lax cookie is stored by the browser and then never sent
+  // back. Login appears to succeed and every authenticated call afterwards
+  // returns 401.
+  //
+  // None removes the CSRF protection Strict was giving, so it is replaced by
+  // two things: credentialed CORS restricted to an explicit origin allow-list,
+  // and every state-changing route requiring Content-Type: application/json,
+  // which a cross-site HTML form cannot send without a preflight that the
+  // allow-list rejects.
+  //
+  // Secure is mandatory alongside None; browsers drop the cookie otherwise.
+  return `odour_session=${token}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=${maxAgeSeconds}`;
 }
 
 async function createSession(env, user, request) {
@@ -232,7 +261,7 @@ export async function login(env, request, body) {
 
   // Hash even when the user does not exist, so response time does not reveal
   // which emails are registered.
-  const iterations = parseInt(env.AUTH_ITERATIONS, 10) || DEFAULT_ITERATIONS;
+  const iterations = safeIterations(env);
   const stored = user?.password_hash
     || `pbkdf2$${iterations}$AAAAAAAAAAAAAAAAAAAAAA==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=`;
   const ok = await verifyPassword(body.password || '', stored);

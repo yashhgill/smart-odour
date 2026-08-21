@@ -1,12 +1,19 @@
 -- Seed data for Cloudflare D1. Generated, deterministic (seed=20260818).
+--
+-- Uses INSERT OR IGNORE and a uniqueness guard, so re-running cannot duplicate
+-- rows. An earlier version used a plain INSERT and a second run silently
+-- doubled every zone's history.
 -- wrangler d1 execute smart-odour --remote --file=d1/seed.sql
+
+create unique index if not exists idx_seed_unique
+  on readings (zone_id, ts, source) where source = 'seed';
 
 insert or replace into zones (id,name,code,latitude,longitude,is_physical,description) values (1,'Kolej Kediaman Lekiu','Z1-LEKIU',2.3129,102.3197,1,'Physical ESP32 edge node. Live telemetry via HTTPS ingest.');
 insert or replace into zones (id,name,code,latitude,longitude,is_physical,description) values (2,'FTMK Faculty Building','Z2-FTMK',2.3105,102.3184,0,'Virtual node. Historical dataset replay.');
 insert or replace into zones (id,name,code,latitude,longitude,is_physical,description) values (3,'Main Cafeteria / Waste Bay','Z3-CAFE',2.3141,102.3172,0,'Virtual node. Downwind of the campus waste collection point.');
 insert or replace into zones (id,name,code,latitude,longitude,is_physical,description) values (4,'North Perimeter (Farm Side)','Z4-NORTH',2.3168,102.321,0,'Virtual node. Closest to the external poultry farm boundary.');
 
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (2,'VIRTUAL_Z2-FTMK','2026-07-19T12:16:38Z',30.1,67.1,416,389,261,265,29.4,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-07-19T12:16:38Z',30.1,67.1,460,634,290,338,41.8,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-07-19T12:16:38Z',30.1,67.1,498,677,296,332,57.4,'seed'),
@@ -207,7 +214,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (4,'VIRTUAL_Z4-NORTH','2026-07-20T04:31:38Z',23.9,85.8,562,842,378,416,71.1,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-07-20T04:46:38Z',23.5,86.7,510,551,326,334,52.8,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-07-20T04:46:38Z',23.5,86.7,526,746,347,382,67.5,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (4,'VIRTUAL_Z4-NORTH','2026-07-20T04:46:38Z',23.5,86.7,599,883,414,399,82.6,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-07-20T05:01:38Z',23.7,84.3,449,528,343,336,50.9,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-07-20T05:01:38Z',23.7,84.3,594,716,380,432,70.5,'seed'),
@@ -408,7 +415,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (3,'VIRTUAL_Z3-CAFE','2026-07-20T21:16:38Z',24.2,82.0,529,705,349,358,56.4,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-07-20T21:16:38Z',24.2,82.0,613,769,384,387,64.7,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-07-20T21:31:38Z',23.7,86.8,448,464,325,307,45.8,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (3,'VIRTUAL_Z3-CAFE','2026-07-20T21:31:38Z',23.7,86.8,543,706,311,347,58.2,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-07-20T21:31:38Z',23.7,86.8,557,766,367,359,66.0,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-07-20T21:46:38Z',24.0,83.4,387,442,324,287,38.8,'seed'),
@@ -609,7 +616,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (2,'VIRTUAL_Z2-FTMK','2026-07-21T14:01:38Z',30.9,63.5,409,448,271,271,29.2,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-07-21T14:01:38Z',30.9,63.5,432,639,299,334,47.0,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-07-21T14:01:38Z',30.9,63.5,511,748,338,340,50.3,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (2,'VIRTUAL_Z2-FTMK','2026-07-21T14:16:38Z',30.0,64.0,366,426,241,313,28.3,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-07-21T14:16:38Z',30.0,64.0,504,653,270,350,45.2,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-07-21T14:16:38Z',30.0,64.0,512,683,362,364,55.9,'seed'),
@@ -810,7 +817,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (4,'VIRTUAL_Z4-NORTH','2026-07-22T06:31:38Z',26.3,80.6,638,839,434,468,83.7,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-07-22T06:46:38Z',26.6,81.3,481,566,345,380,57.1,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-07-22T06:46:38Z',26.6,81.3,578,825,406,398,64.8,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (4,'VIRTUAL_Z4-NORTH','2026-07-22T06:46:38Z',26.6,81.3,604,936,400,450,81.1,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-07-22T07:01:38Z',25.8,80.1,456,549,372,341,51.2,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-07-22T07:01:38Z',25.8,80.1,578,746,402,427,72.3,'seed'),
@@ -1011,7 +1018,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (3,'VIRTUAL_Z3-CAFE','2026-07-22T23:16:38Z',23.1,89.8,430,661,323,331,41.1,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-07-22T23:16:38Z',23.1,89.8,554,719,354,336,56.6,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-07-22T23:31:38Z',23.3,90.0,344,400,252,252,27.3,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (3,'VIRTUAL_Z3-CAFE','2026-07-22T23:31:38Z',23.3,90.0,492,674,289,314,43.6,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-07-22T23:31:38Z',23.3,90.0,566,773,351,357,57.2,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-07-22T23:46:38Z',23.0,92.0,359,459,235,251,24.0,'seed'),
@@ -1212,7 +1219,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (2,'VIRTUAL_Z2-FTMK','2026-07-23T16:01:38Z',29.3,67.9,436,515,260,333,32.9,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-07-23T16:01:38Z',29.3,67.9,494,705,351,351,49.2,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-07-23T16:01:38Z',29.3,67.9,559,813,323,380,62.7,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (2,'VIRTUAL_Z2-FTMK','2026-07-23T16:16:38Z',29.8,70.8,404,436,269,314,39.5,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-07-23T16:16:38Z',29.8,70.8,515,706,327,345,46.8,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-07-23T16:16:38Z',29.8,70.8,596,757,350,359,63.8,'seed'),
@@ -1413,7 +1420,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (4,'VIRTUAL_Z4-NORTH','2026-07-24T08:31:38Z',27.7,73.9,606,744,388,348,63.6,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-07-24T08:46:38Z',28.3,75.0,425,436,271,304,33.0,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-07-24T08:46:38Z',28.3,75.0,474,669,359,317,47.7,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (4,'VIRTUAL_Z4-NORTH','2026-07-24T08:46:38Z',28.3,75.0,549,781,334,400,60.9,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-07-24T09:01:38Z',27.7,74.7,409,420,285,305,32.8,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-07-24T09:01:38Z',27.7,74.7,518,600,303,319,46.8,'seed'),
@@ -1614,7 +1621,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (3,'VIRTUAL_Z3-CAFE','2026-07-25T01:16:38Z',22.9,88.4,427,667,303,344,45.3,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-07-25T01:16:38Z',22.9,88.4,558,767,297,370,56.1,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-07-25T01:31:38Z',22.4,89.8,425,393,296,301,24.0,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (3,'VIRTUAL_Z3-CAFE','2026-07-25T01:31:38Z',22.4,89.8,458,597,317,340,36.5,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-07-25T01:31:38Z',22.4,89.8,506,673,331,357,48.7,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-07-25T01:46:38Z',23.0,92.0,428,453,263,277,33.8,'seed'),
@@ -1815,7 +1822,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (2,'VIRTUAL_Z2-FTMK','2026-07-25T18:01:38Z',27.1,72.2,472,549,297,383,55.0,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-07-25T18:01:38Z',27.1,72.2,595,782,404,363,61.1,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-07-25T18:01:38Z',27.1,72.2,616,842,371,431,76.5,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (2,'VIRTUAL_Z2-FTMK','2026-07-25T18:16:38Z',27.1,77.1,446,551,339,361,51.2,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-07-25T18:16:38Z',27.1,77.1,528,778,400,413,69.5,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-07-25T18:16:38Z',27.1,77.1,588,813,385,414,80.4,'seed'),
@@ -2016,7 +2023,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (4,'VIRTUAL_Z4-NORTH','2026-07-26T10:31:38Z',29.1,68.3,551,711,304,360,47.8,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-07-26T10:46:38Z',29.7,69.6,395,388,268,252,28.2,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-07-26T10:46:38Z',29.7,69.6,475,583,281,308,40.5,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (4,'VIRTUAL_Z4-NORTH','2026-07-26T10:46:38Z',29.7,69.6,491,778,365,340,51.6,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-07-26T11:01:38Z',29.8,70.4,354,417,293,301,30.7,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-07-26T11:01:38Z',29.8,70.4,497,603,329,331,47.4,'seed'),
@@ -2217,7 +2224,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (3,'VIRTUAL_Z3-CAFE','2026-07-27T03:16:38Z',23.6,88.9,487,631,354,361,53.3,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-07-27T03:16:38Z',23.6,88.9,584,803,369,371,62.2,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-07-27T03:31:38Z',23.4,89.3,435,460,285,306,42.0,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (3,'VIRTUAL_Z3-CAFE','2026-07-27T03:31:38Z',23.4,89.3,512,701,339,371,56.4,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-07-27T03:31:38Z',23.4,89.3,555,737,331,406,60.5,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-07-27T03:46:38Z',23.5,87.0,402,463,324,340,41.6,'seed'),
@@ -2418,7 +2425,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (2,'VIRTUAL_Z2-FTMK','2026-07-27T20:01:38Z',25.2,80.4,462,598,309,314,55.0,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-07-27T20:01:38Z',25.2,80.4,539,758,387,358,60.1,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-07-27T20:01:38Z',25.2,80.4,644,891,419,436,74.8,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (2,'VIRTUAL_Z2-FTMK','2026-07-27T20:16:38Z',25.4,78.5,434,571,340,323,47.3,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-07-27T20:16:38Z',25.4,78.5,553,732,400,362,57.8,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-07-27T20:16:38Z',25.4,78.5,570,893,375,440,69.2,'seed'),
@@ -2619,7 +2626,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (4,'VIRTUAL_Z4-NORTH','2026-07-28T12:31:38Z',29.8,66.6,508,725,299,314,51.9,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-07-28T12:46:38Z',30.2,68.1,364,367,275,270,24.1,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-07-28T12:46:38Z',30.2,68.1,417,604,323,290,44.4,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (4,'VIRTUAL_Z4-NORTH','2026-07-28T12:46:38Z',30.2,68.1,501,688,355,347,53.0,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-07-28T13:01:38Z',30.9,67.7,402,413,235,285,34.2,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-07-28T13:01:38Z',30.9,67.7,497,637,334,333,38.3,'seed'),
@@ -2820,7 +2827,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (3,'VIRTUAL_Z3-CAFE','2026-07-29T05:16:38Z',24.4,84.5,541,809,410,408,66.3,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-07-29T05:16:38Z',24.4,84.5,666,846,430,403,81.4,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-07-29T05:31:38Z',25.0,82.3,492,568,337,351,64.0,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (3,'VIRTUAL_Z3-CAFE','2026-07-29T05:31:38Z',25.0,82.3,585,764,419,428,72.2,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-07-29T05:31:38Z',25.0,82.3,609,881,442,428,85.2,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-07-29T05:46:38Z',25.5,84.7,509,636,381,366,57.0,'seed'),
@@ -3021,7 +3028,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (2,'VIRTUAL_Z2-FTMK','2026-07-29T22:01:38Z',23.3,86.5,376,523,276,339,35.8,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-07-29T22:01:38Z',23.3,86.5,526,619,306,327,47.0,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-07-29T22:01:38Z',23.3,86.5,526,789,342,373,61.0,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (2,'VIRTUAL_Z2-FTMK','2026-07-29T22:16:38Z',23.7,87.1,440,416,265,317,38.0,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-07-29T22:16:38Z',23.7,87.1,447,681,323,335,49.0,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-07-29T22:16:38Z',23.7,87.1,591,711,382,380,57.8,'seed'),
@@ -3222,7 +3229,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (4,'VIRTUAL_Z4-NORTH','2026-07-30T14:31:38Z',29.6,64.2,513,768,306,358,49.0,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-07-30T14:46:38Z',30.4,69.5,427,450,251,281,29.9,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-07-30T14:46:38Z',30.4,69.5,447,620,303,308,49.1,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (4,'VIRTUAL_Z4-NORTH','2026-07-30T14:46:38Z',30.4,69.5,544,681,345,326,56.0,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-07-30T15:01:38Z',30.4,65.5,405,414,263,269,37.6,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-07-30T15:01:38Z',30.4,65.5,445,603,339,334,44.4,'seed'),
@@ -3423,7 +3430,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (3,'VIRTUAL_Z3-CAFE','2026-07-31T07:16:38Z',26.4,77.4,517,791,364,377,63.2,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-07-31T07:16:38Z',26.4,77.4,640,818,375,410,71.9,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-07-31T07:31:38Z',27.4,75.0,491,595,325,326,49.1,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (3,'VIRTUAL_Z3-CAFE','2026-07-31T07:31:38Z',27.4,75.0,515,715,392,415,67.5,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-07-31T07:31:38Z',27.4,75.0,611,791,414,412,72.8,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-07-31T07:46:38Z',27.1,78.6,426,478,289,328,43.9,'seed'),
@@ -3624,7 +3631,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (2,'VIRTUAL_Z2-FTMK','2026-08-01T00:01:38Z',22.8,87.6,372,452,283,299,24.2,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-01T00:01:38Z',22.8,87.6,502,590,293,319,41.6,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-01T00:01:38Z',22.8,87.6,538,693,363,346,53.4,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (2,'VIRTUAL_Z2-FTMK','2026-08-01T00:16:38Z',22.1,91.2,401,392,295,289,30.7,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-01T00:16:38Z',22.1,91.2,459,567,335,342,38.9,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-01T00:16:38Z',22.1,91.2,516,734,312,344,48.8,'seed'),
@@ -3825,7 +3832,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (4,'VIRTUAL_Z4-NORTH','2026-08-01T16:31:38Z',29.0,70.0,583,801,375,416,63.2,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-01T16:46:38Z',29.0,68.4,436,534,337,291,48.5,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-01T16:46:38Z',29.0,68.4,479,656,340,379,57.2,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (4,'VIRTUAL_Z4-NORTH','2026-08-01T16:46:38Z',29.0,68.4,551,801,389,361,70.0,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-01T17:01:38Z',28.7,72.9,474,498,323,327,48.8,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-01T17:01:38Z',28.7,72.9,500,753,345,370,56.7,'seed'),
@@ -4026,7 +4033,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (3,'VIRTUAL_Z3-CAFE','2026-08-02T09:16:38Z',29.0,73.5,450,636,344,357,44.1,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-02T09:16:38Z',29.0,73.5,530,772,341,389,62.1,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-02T09:31:38Z',28.1,72.5,380,475,282,275,36.4,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (3,'VIRTUAL_Z3-CAFE','2026-08-02T09:31:38Z',28.1,72.5,469,660,326,344,46.1,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-02T09:31:38Z',28.1,72.5,556,757,322,363,52.2,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-02T09:46:38Z',29.0,70.5,357,430,298,286,31.8,'seed'),
@@ -4227,7 +4234,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (2,'VIRTUAL_Z2-FTMK','2026-08-03T02:01:38Z',21.9,91.4,369,414,294,303,32.4,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-03T02:01:38Z',21.9,91.4,432,579,305,299,44.9,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-03T02:01:38Z',21.9,91.4,490,699,319,377,49.6,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (2,'VIRTUAL_Z2-FTMK','2026-08-03T02:16:38Z',22.0,87.1,376,465,283,279,29.7,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-03T02:16:38Z',22.0,87.1,449,649,313,350,42.6,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-03T02:16:38Z',22.0,87.1,493,773,372,340,58.7,'seed'),
@@ -4428,7 +4435,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (4,'VIRTUAL_Z4-NORTH','2026-08-03T18:31:38Z',26.6,73.0,639,817,415,414,82.2,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-03T18:46:38Z',27.4,74.5,438,602,329,367,56.0,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-03T18:46:38Z',27.4,74.5,601,796,383,419,64.7,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (4,'VIRTUAL_Z4-NORTH','2026-08-03T18:46:38Z',27.4,74.5,592,917,417,426,81.2,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-03T19:01:38Z',26.7,75.5,505,588,368,382,57.2,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-03T19:01:38Z',26.7,75.5,588,711,374,420,62.9,'seed'),
@@ -4629,7 +4636,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (3,'VIRTUAL_Z3-CAFE','2026-08-04T11:16:38Z',29.6,68.3,470,593,277,352,37.1,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-04T11:16:38Z',29.6,68.3,548,675,354,317,53.4,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-04T11:31:38Z',30.2,67.5,364,387,233,272,25.9,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (3,'VIRTUAL_Z3-CAFE','2026-08-04T11:31:38Z',30.2,67.5,478,651,312,351,44.3,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-04T11:31:38Z',30.2,67.5,524,696,316,354,50.4,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-04T11:46:38Z',29.7,68.7,343,435,267,260,23.9,'seed'),
@@ -4830,7 +4837,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (2,'VIRTUAL_Z2-FTMK','2026-08-05T04:01:38Z',23.8,87.9,459,461,300,320,39.1,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-05T04:01:38Z',23.8,87.9,517,674,384,400,53.2,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-05T04:01:38Z',23.8,87.9,578,843,404,415,67.9,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (2,'VIRTUAL_Z2-FTMK','2026-08-05T04:16:38Z',23.6,86.8,472,517,337,368,48.6,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-05T04:16:38Z',23.6,86.8,546,694,390,358,56.7,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-05T04:16:38Z',23.6,86.8,569,832,423,372,68.3,'seed'),
@@ -5031,7 +5038,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (4,'VIRTUAL_Z4-NORTH','2026-08-05T20:31:38Z',25.7,81.4,638,853,365,400,74.3,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-05T20:46:38Z',24.3,85.3,432,474,317,357,50.4,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-05T20:46:38Z',24.3,85.3,484,745,344,346,64.8,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (4,'VIRTUAL_Z4-NORTH','2026-08-05T20:46:38Z',24.3,85.3,617,870,387,383,72.6,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-05T21:01:38Z',24.6,83.2,402,474,307,311,49.4,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-05T21:01:38Z',24.6,83.2,539,715,382,344,54.3,'seed'),
@@ -5232,7 +5239,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (3,'VIRTUAL_Z3-CAFE','2026-08-06T13:16:38Z',30.1,68.3,435,580,277,311,41.2,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-06T13:16:38Z',30.1,68.3,508,700,329,321,55.6,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-06T13:31:38Z',29.9,66.0,364,434,247,269,23.4,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (3,'VIRTUAL_Z3-CAFE','2026-08-06T13:31:38Z',29.9,66.0,453,622,273,286,36.4,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-06T13:31:38Z',29.9,66.0,555,700,349,336,58.2,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-06T13:46:38Z',30.8,66.5,365,419,240,308,23.6,'seed'),
@@ -5433,7 +5440,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (2,'VIRTUAL_Z2-FTMK','2026-08-07T06:01:38Z',25.2,84.7,476,558,321,406,64.3,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-07T06:01:38Z',25.2,84.7,604,838,426,441,78.8,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-07T06:01:38Z',25.2,84.7,635,883,414,422,79.7,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (2,'VIRTUAL_Z2-FTMK','2026-08-07T06:16:38Z',26.0,81.3,518,569,348,380,63.9,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-07T06:16:38Z',26.0,81.3,587,767,395,381,69.8,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-07T06:16:38Z',26.0,81.3,679,866,396,472,77.9,'seed'),
@@ -5634,7 +5641,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (4,'VIRTUAL_Z4-NORTH','2026-08-07T22:31:38Z',24.2,88.7,542,731,369,363,53.1,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-07T22:46:38Z',24.0,85.3,405,395,272,319,32.1,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-07T22:46:38Z',24.0,85.3,467,674,313,306,42.7,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (4,'VIRTUAL_Z4-NORTH','2026-08-07T22:46:38Z',24.0,85.3,573,767,330,351,61.2,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-07T23:01:38Z',23.1,87.8,427,419,287,265,26.1,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-07T23:01:38Z',23.1,87.8,474,626,313,317,43.5,'seed'),
@@ -5835,7 +5842,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (3,'VIRTUAL_Z3-CAFE','2026-08-08T15:16:38Z',30.0,66.0,461,584,339,304,51.1,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-08T15:16:38Z',30.0,66.0,513,707,342,382,61.9,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-08T15:31:38Z',30.5,68.0,385,489,256,306,35.5,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (3,'VIRTUAL_Z3-CAFE','2026-08-08T15:31:38Z',30.5,68.0,521,695,316,333,46.4,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-08T15:31:38Z',30.5,68.0,516,715,373,350,61.9,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-08T15:46:38Z',29.3,68.8,426,511,256,320,40.8,'seed'),
@@ -6036,7 +6043,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (2,'VIRTUAL_Z2-FTMK','2026-08-09T08:01:38Z',27.1,77.9,442,461,334,346,42.3,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-09T08:01:38Z',27.1,77.9,496,684,336,377,53.2,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-09T08:01:38Z',27.1,77.9,591,843,376,384,70.6,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (2,'VIRTUAL_Z2-FTMK','2026-08-09T08:16:38Z',28.0,77.8,454,504,319,323,42.5,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-09T08:16:38Z',28.0,77.8,476,691,361,357,55.9,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-09T08:16:38Z',28.0,77.8,589,842,369,373,71.4,'seed'),
@@ -6237,7 +6244,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (4,'VIRTUAL_Z4-NORTH','2026-08-10T00:31:38Z',22.6,91.8,548,707,325,335,49.9,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-10T00:46:38Z',22.1,92.8,372,448,233,265,30.4,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-10T00:46:38Z',22.1,92.8,461,590,319,324,35.6,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (4,'VIRTUAL_Z4-NORTH','2026-08-10T00:46:38Z',22.1,92.8,482,721,301,335,56.7,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-10T01:01:38Z',23.1,87.4,347,403,251,253,27.1,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-10T01:01:38Z',23.1,87.4,504,616,318,327,35.9,'seed'),
@@ -6438,7 +6445,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (3,'VIRTUAL_Z3-CAFE','2026-08-10T17:16:38Z',29.1,72.9,555,729,362,365,54.7,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-10T17:16:38Z',29.1,72.9,593,874,398,428,66.9,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-10T17:31:38Z',28.7,74.1,452,552,290,370,49.8,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (3,'VIRTUAL_Z3-CAFE','2026-08-10T17:31:38Z',28.7,74.1,519,676,351,399,64.0,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-10T17:31:38Z',28.7,74.1,608,861,368,396,67.0,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-10T17:46:38Z',28.5,74.7,454,576,311,335,45.8,'seed'),
@@ -6639,7 +6646,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (2,'VIRTUAL_Z2-FTMK','2026-08-11T10:01:38Z',29.4,71.2,370,485,301,266,31.5,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-11T10:01:38Z',29.4,71.2,480,622,287,297,48.1,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-11T10:01:38Z',29.4,71.2,571,691,362,370,55.4,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (2,'VIRTUAL_Z2-FTMK','2026-08-11T10:16:38Z',29.6,69.8,411,468,250,249,33.2,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-11T10:16:38Z',29.6,69.8,432,648,330,333,47.1,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-11T10:16:38Z',29.6,69.8,567,736,369,328,52.8,'seed'),
@@ -6840,7 +6847,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (4,'VIRTUAL_Z4-NORTH','2026-08-12T02:31:38Z',23.2,91.4,576,749,352,351,54.4,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-12T02:46:38Z',22.8,89.5,444,419,250,271,31.8,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-12T02:46:38Z',22.8,89.5,522,647,282,355,48.5,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (4,'VIRTUAL_Z4-NORTH','2026-08-12T02:46:38Z',22.8,89.5,527,716,340,346,57.1,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-12T03:01:38Z',22.8,91.1,380,432,304,315,31.7,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-12T03:01:38Z',22.8,91.1,450,637,340,372,43.7,'seed'),
@@ -7041,7 +7048,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (3,'VIRTUAL_Z3-CAFE','2026-08-12T19:16:38Z',26.4,75.7,524,810,377,409,66.1,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-12T19:16:38Z',26.4,75.7,663,833,421,442,77.0,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-12T19:31:38Z',26.3,77.5,436,564,333,368,50.0,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (3,'VIRTUAL_Z3-CAFE','2026-08-12T19:31:38Z',26.3,77.5,600,786,365,388,70.9,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-12T19:31:38Z',26.3,77.5,643,887,397,392,74.6,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-12T19:46:38Z',25.7,82.2,463,609,301,320,51.4,'seed'),
@@ -7242,7 +7249,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (2,'VIRTUAL_Z2-FTMK','2026-08-13T12:01:38Z',30.7,68.4,377,464,230,256,29.8,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-13T12:01:38Z',30.7,68.4,493,622,279,307,46.3,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-13T12:01:38Z',30.7,68.4,540,772,341,321,50.8,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (2,'VIRTUAL_Z2-FTMK','2026-08-13T12:16:38Z',30.8,63.5,353,463,230,266,23.1,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-13T12:16:38Z',30.8,63.5,464,605,308,314,37.2,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-13T12:16:38Z',30.8,63.5,516,697,316,383,52.7,'seed'),
@@ -7443,7 +7450,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (4,'VIRTUAL_Z4-NORTH','2026-08-14T04:31:38Z',23.6,87.8,571,885,378,438,77.6,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-14T04:46:38Z',23.6,82.3,465,604,338,335,54.5,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-14T04:46:38Z',23.6,82.3,575,714,403,387,65.8,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (4,'VIRTUAL_Z4-NORTH','2026-08-14T04:46:38Z',23.6,82.3,633,814,380,423,73.3,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-14T05:01:38Z',24.6,83.1,507,565,337,340,54.8,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-14T05:01:38Z',24.6,83.1,538,813,414,418,64.3,'seed'),
@@ -7644,7 +7651,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (3,'VIRTUAL_Z3-CAFE','2026-08-14T21:16:38Z',23.9,82.3,532,646,367,366,53.2,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-14T21:16:38Z',23.9,82.3,549,830,382,370,65.3,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-14T21:31:38Z',23.8,82.9,470,468,304,349,36.4,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (3,'VIRTUAL_Z3-CAFE','2026-08-14T21:31:38Z',23.8,82.9,481,731,326,350,58.6,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-14T21:31:38Z',23.8,82.9,547,767,378,380,59.4,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-14T21:46:38Z',24.4,86.5,407,492,264,299,42.0,'seed'),
@@ -7845,7 +7852,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (2,'VIRTUAL_Z2-FTMK','2026-08-15T14:01:38Z',30.7,66.7,411,420,249,278,28.2,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-15T14:01:38Z',30.7,66.7,498,661,286,327,47.0,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-15T14:01:38Z',30.7,66.7,528,737,363,323,49.2,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (2,'VIRTUAL_Z2-FTMK','2026-08-15T14:16:38Z',30.6,67.1,398,390,279,277,26.5,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-15T14:16:38Z',30.6,67.1,451,649,328,343,43.0,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-15T14:16:38Z',30.6,67.1,486,753,337,378,52.7,'seed'),
@@ -8046,7 +8053,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (4,'VIRTUAL_Z4-NORTH','2026-08-16T06:31:38Z',25.5,83.0,613,937,408,435,88.6,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-16T06:46:38Z',25.9,81.1,468,615,339,348,58.4,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-16T06:46:38Z',25.9,81.1,610,801,382,421,73.1,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (4,'VIRTUAL_Z4-NORTH','2026-08-16T06:46:38Z',25.9,81.1,639,898,405,451,84.1,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-16T07:01:38Z',26.6,76.3,463,572,374,351,58.8,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-16T07:01:38Z',26.6,76.3,564,760,347,423,72.2,'seed'),
@@ -8247,7 +8254,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (3,'VIRTUAL_Z3-CAFE','2026-08-16T23:16:38Z',22.6,86.6,445,585,297,337,38.2,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-16T23:16:38Z',22.6,86.6,502,711,335,349,50.5,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-16T23:31:38Z',23.4,87.2,379,421,252,301,34.8,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (3,'VIRTUAL_Z3-CAFE','2026-08-16T23:31:38Z',23.4,87.2,511,634,304,320,39.4,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-16T23:31:38Z',23.4,87.2,567,736,317,351,49.5,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-16T23:46:38Z',22.4,91.7,342,424,288,304,31.1,'seed'),
@@ -8448,7 +8455,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (2,'VIRTUAL_Z2-FTMK','2026-08-17T16:01:38Z',29.9,71.9,439,429,254,272,32.0,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-17T16:01:38Z',29.9,71.9,458,611,349,332,51.3,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-17T16:01:38Z',29.9,71.9,572,799,362,391,60.3,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (2,'VIRTUAL_Z2-FTMK','2026-08-17T16:16:38Z',29.8,72.2,404,433,291,325,39.6,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-17T16:16:38Z',29.8,72.2,544,698,305,322,51.1,'seed'),
 (4,'VIRTUAL_Z4-NORTH','2026-08-17T16:16:38Z',29.8,72.2,543,772,361,413,60.6,'seed'),
@@ -8649,7 +8656,7 @@ insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_
 (4,'VIRTUAL_Z4-NORTH','2026-08-18T08:31:38Z',28.3,71.7,523,800,389,382,63.4,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-18T08:46:38Z',27.9,73.8,401,513,268,289,42.6,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-18T08:46:38Z',27.9,73.8,515,642,355,316,46.9,'seed');
-insert into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
+insert or ignore into readings (zone_id,node_id,ts,temperature,humidity,mq5,mq6,mq7_1,mq7_2,aqi_score,source) values
 (4,'VIRTUAL_Z4-NORTH','2026-08-18T08:46:38Z',27.9,73.8,515,800,347,397,58.1,'seed'),
 (2,'VIRTUAL_Z2-FTMK','2026-08-18T09:01:38Z',28.7,73.7,377,509,314,290,33.7,'seed'),
 (3,'VIRTUAL_Z3-CAFE','2026-08-18T09:01:38Z',28.7,73.7,513,673,321,355,42.4,'seed'),

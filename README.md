@@ -1,7 +1,9 @@
 # Smart Odour Monitoring Platform
 
 High-availability environmental odour monitoring for the UTeM campus.
-AWS-free rebuild on **Cloudflare + Render + Neon + HiveMQ Cloud**. RM 0/month.
+AWS-free rebuild, entirely on **Cloudflare**. RM 0/month.
+
+**Start with `SETUP.md`.** It is the only deployment guide you need.
 
 See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the full AWS → Cloudflare/Render
 service mapping and the reliability-demo script.

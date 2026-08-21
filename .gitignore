@@ -6,3 +6,5 @@ worker/node_modules/
 worker/.wrangler/
 *.pyc
 .DS_Store
+
+DEVICE_KEY.txt

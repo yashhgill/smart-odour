@@ -16,7 +16,7 @@ bucket_name = "smart-odour-raw"
 [[d1_databases]]
 binding = "DB"
 database_name = "smart-odour"
-database_id = "REPLACE_AFTER_WRANGLER_D1_CREATE"
+database_id = "ee34669b-70dd-436c-bd6e-3b335cff48b2"
 
 # Live fan-out to connected dashboards
 [[durable_objects.bindings]]
@@ -44,11 +44,20 @@ id = "3153fe3b5409420c83c07c98b5e678ce"
 # Non-secret vars. Everything sensitive goes through `wrangler secret put`.
 [vars]
 ENVIRONMENT = "production"
-# Your Pages URL. Must be exact — credentialed CORS cannot use "*".
-ALLOWED_ORIGINS = "https://smart-odour.pages.dev"
-# See the iteration table in src/auth.js. Safe at 210000 on the free plan
-# because all hashing happens inside the AuthGate Durable Object (30s CPU).
-AUTH_ITERATIONS = "210000"   # safe on free tier: hashing runs inside AuthGate
+# Comma-separated list of exact origins allowed to call this API.
+# Credentialed CORS cannot use "*", so every host the portals are served from
+# must appear here verbatim, scheme included and no trailing slash.
+# Keep the pages.dev entry even after adding a custom domain — Pages preview
+# builds still resolve there and you will want them working.
+ALLOWED_ORIGINS = "https://smart-odour.pages.dev,https://odour.harnova.my"
+# 100000 is Cloudflare's hard ceiling for PBKDF2. Anything higher throws
+# "iteration counts above 100000 are not supported" at runtime. The code clamps
+# to this regardless, so a wrong value here degrades rather than breaks login.
+AUTH_ITERATIONS = "100000"
+
+# Render compute sidecar. Leave unset and forecasting plus PDF export simply
+# stay unavailable — nothing else is affected.
+COMPUTE_BASE = "https://odour-compute.onrender.com"
 
 # Required secrets:
 #   wrangler secret put DEVICE_KEY            # shared HMAC secret with the ESP32
@@ -57,3 +66,4 @@ AUTH_ITERATIONS = "210000"   # safe on free tier: hashing runs inside AuthGate
 #   wrangler secret put ALERT_EMAIL           # where threshold alerts go
 #   wrangler secret put TELEGRAM_BOT_TOKEN    # optional second alert channel
 #   wrangler secret put TELEGRAM_CHAT_ID
+#   wrangler secret put SERVICE_TOKEN         # shared with the Render sidecar

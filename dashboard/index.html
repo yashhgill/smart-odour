@@ -6,153 +6,120 @@
 <title>Smart Odour Monitoring — UTeM Campus</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="portal.css">
+<style>
+  /* Public view is a single scrolling page rather than a sidebar app: there is
+     no navigation to speak of, and anyone arriving here wants one number. */
+  .public { max-width: 1240px; margin: 0 auto; padding: 22px 24px 48px; }
+  .masthead {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap; margin-bottom: 20px;
+  }
+  .masthead__id { display: flex; align-items: center; gap: 13px; }
+  .masthead h1 { font-size: 20px; font-weight: 700; line-height: 1.15; }
+  .masthead p { margin: 2px 0 0; font-size: 12.5px; color: var(--muted); }
+  .masthead__actions { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+  .hero {
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--r);
+    box-shadow: var(--shadow-1); padding: 24px 26px; margin-bottom: 18px;
+    display: flex; align-items: center; gap: 26px; flex-wrap: wrap;
+  }
+  .hero__num {
+    font-family: var(--mono); font-size: 58px; font-weight: 500;
+    line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums;
+  }
+  .hero__meta { flex: 1; min-width: 240px; }
+  .hero__meta h2 { font-size: 17px; font-weight: 650; }
+  .hero__meta p { margin: 5px 0 0; font-size: 13px; color: var(--muted); max-width: 62ch; }
+  .clock {
+    font-family: var(--mono); font-size: 13px; color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+</style>
 </head>
 <body>
 
-<header class="masthead">
-  <div class="masthead__id">
-    <h1>Smart Odour Monitoring</h1>
-    <p>Universiti Teknikal Malaysia Melaka &middot; Campus Air Quality Station Network</p>
-  </div>
-  <div class="masthead__status">
-    <div class="pill" id="pill-feed"><span class="pill__dot"></span><span class="pill__text">Connecting</span></div>
-    <div class="pill" id="pill-origin"><span class="pill__dot"></span><span class="pill__text">Origin unknown</span></div>
-    <time class="clock" id="clock">--:--:--</time>
-  </div>
-</header>
-
-<main class="grid">
-
-  <!-- ---------------------------------------------------------------- -->
-  <section class="panel panel--stations" aria-labelledby="h-stations">
-    <div class="panel__head">
-      <h2 id="h-stations">Stations</h2>
-      <span class="panel__note">Odour index, 0&ndash;100</span>
-    </div>
-    <div class="stations" id="stations">
-      <p class="empty">Waiting for the first reading from the network.</p>
-    </div>
-  </section>
-
-  <!-- ---------------------------------------------------------------- -->
-  <section class="panel panel--map" aria-labelledby="h-map">
-    <div class="panel__head">
-      <h2 id="h-map">Dispersion chart</h2>
-      <span class="panel__note" id="map-note">Plume projected downwind from the strongest source</span>
-    </div>
-    <div class="mapwrap">
-      <svg id="map" viewBox="0 0 600 420" role="img" aria-label="Campus map showing monitoring zones and the projected odour plume"></svg>
-      <div class="windrose" id="windrose">
-        <svg viewBox="0 0 90 90" aria-hidden="true">
-          <circle cx="45" cy="45" r="34" class="rose__ring"/>
-          <line x1="45" y1="7" x2="45" y2="15" class="rose__tick"/>
-          <line x1="45" y1="75" x2="45" y2="83" class="rose__tick"/>
-          <line x1="7" y1="45" x2="15" y2="45" class="rose__tick"/>
-          <line x1="75" y1="45" x2="83" y2="45" class="rose__tick"/>
-          <g id="rose-needle"><path d="M45 16 L52 52 L45 46 L38 52 Z" class="rose__needle"/></g>
-        </svg>
-        <p class="windrose__read" id="wind-read">&mdash;</p>
+<div class="public">
+  <header class="masthead">
+    <div class="masthead__id">
+      <div class="side__mark"><svg viewBox="0 0 24 24"></svg></div>
+      <div>
+        <h1>Smart Odour Monitoring</h1>
+        <p>Universiti Teknikal Malaysia Melaka &middot; Campus Air Quality Network</p>
       </div>
     </div>
-  </section>
+    <div class="masthead__actions who">
+      <span class="pill pill--grey" id="feed">Connecting</span>
+      <time class="clock" id="clock">--:--:--</time>
+      <a class="btn btn--ghost" href="user.html">Student portal</a>
+      <a class="btn" href="admin.html">Admin sign in</a>
+    </div>
+  </header>
 
-  <!-- ---------------------------------------------------------------- -->
-  <section class="panel panel--forecast" aria-labelledby="h-forecast">
-    <div class="panel__head">
-      <h2 id="h-forecast">Forecast</h2>
-      <span class="panel__note" id="forecast-zone">&mdash;</span>
+  <section class="hero">
+    <div>
+      <div class="card__label">Campus air right now</div>
+      <div class="hero__num" id="hero-num">—</div>
+      <div class="pill pill--grey" id="hero-band" style="margin-top:8px">awaiting data</div>
     </div>
-    <div class="forecast" id="forecast">
-      <p class="empty">No forecast yet.</p>
-    </div>
-  </section>
-
-  <!-- ---------------------------------------------------------------- -->
-  <section class="panel panel--trace" aria-labelledby="h-trace">
-    <div class="panel__head">
-      <h2 id="h-trace">Availability trace</h2>
-      <span class="panel__note">Rolling 6 hours &middot; one sample per minute</span>
-    </div>
-    <div class="trace">
-      <div class="trace__figures">
-        <div class="figure">
-          <span class="figure__label">Observed uptime</span>
-          <strong class="figure__value" id="fig-uptime">&mdash;</strong>
-          <span class="figure__foot">target 99.5%</span>
-        </div>
-        <div class="figure">
-          <span class="figure__label">Median latency</span>
-          <strong class="figure__value" id="fig-latency">&mdash;</strong>
-          <span class="figure__foot">edge to origin</span>
-        </div>
-        <div class="figure">
-          <span class="figure__label">Failovers</span>
-          <strong class="figure__value" id="fig-failovers">&mdash;</strong>
-          <span class="figure__foot">last 24 hours</span>
-        </div>
-      </div>
-      <svg id="strip" viewBox="0 0 720 120" role="img" aria-label="Chart recorder trace of origin latency, with failover events marked"></svg>
+    <div class="hero__meta">
+      <h2 id="hero-zone">&mdash;</h2>
+      <p id="hero-note">
+        The highest odour index currently reported across the campus network.
+        The index is a relative 0&ndash;100 severity score, not a calibrated
+        concentration &mdash; see the note at the foot of this page.
+      </p>
     </div>
   </section>
 
-  <!-- ---------------------------------------------------------------- -->
-  <section class="panel panel--history" aria-labelledby="h-history">
-    <div class="panel__head">
-      <h2 id="h-history">Station history</h2>
-      <div class="segmented" id="history-range" role="group" aria-label="History window">
-        <button type="button" data-hours="6" class="is-active">6h</button>
-        <button type="button" data-hours="24">24h</button>
-        <button type="button" data-hours="168">7d</button>
-      </div>
-    </div>
-    <svg id="history" viewBox="0 0 720 200" role="img" aria-label="Odour index over time for the selected station"></svg>
-  </section>
+  <div class="cards" id="stations"></div>
 
-  <!-- ---------------------------------------------------------------- -->
-  <section class="panel panel--incidents" aria-labelledby="h-incidents">
+  <section class="panel">
     <div class="panel__head">
-      <h2 id="h-incidents">Incidents</h2>
-      <label class="check"><input type="checkbox" id="incidents-open" checked> Open only</label>
+      <div><h3>Station map</h3>
+        <p>Halo size scales with the reading. Solid markers are physical hardware;
+           outlined markers replay recorded campus data.</p></div>
     </div>
-    <div class="incidents" id="incidents">
-      <p class="empty">No incidents recorded. The network is within thresholds.</p>
+    <div id="leaflet-map"></div>
+    <div class="map-legend">
+      <span><i style="background:#0e9f6e"></i> Normal</span>
+      <span><i style="background:#e8940c"></i> Warning</span>
+      <span><i style="background:#dc3545"></i> Hazardous</span>
+      <span><i style="background:#94a3b8"></i> Offline</span>
     </div>
   </section>
 
-  <!-- ---------------------------------------------------------------- -->
-  <section class="panel panel--report" aria-labelledby="h-report">
+  <section class="panel">
     <div class="panel__head">
-      <h2 id="h-report">ESG report</h2>
+      <div><h3>Public advisories</h3>
+        <p>Open incidents affecting the campus.</p></div>
+    </div>
+    <div id="advisories"><p class="empty">No active advisories.</p></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel__head">
+      <div><h3>About these readings</h3></div>
     </div>
     <p class="report__blurb">
-      Compiles every station reading over the chosen window into a signed PDF for
-      the sustainability office, and archives a copy in object storage.
+      Readings come from ESP32 nodes carrying MQ-5, MQ-6 and two MQ-7 gas sensors
+      with a DHT11 for temperature and humidity. Each node samples every eight
+      seconds and signs every transmission, so a reading cannot be forged by a
+      third party.
     </p>
-    <div class="report__controls">
-      <label class="field">
-        <span>Window</span>
-        <select id="report-days">
-          <option value="7">Last 7 days</option>
-          <option value="30" selected>Last 30 days</option>
-          <option value="90">Last 90 days</option>
-        </select>
-      </label>
-      <button type="button" class="btn" id="report-go">Generate report</button>
-    </div>
-    <p class="report__status" id="report-status" role="status"></p>
-    <ul class="report__list" id="report-list"></ul>
+    <p class="report__blurb">
+      <b>The odour index is a relative severity score from 0 to 100, not a
+      concentration in parts per million.</b> MQ-series sensors output a raw
+      analogue value that varies with temperature, humidity and sensor age, and
+      they are not calibrated against a reference gas. Absolute concentrations
+      would require per-sensor calibration that has not been performed.
+    </p>
   </section>
+</div>
 
-</main>
-
-<footer class="footnote">
-  <p>Station 1 is physical hardware. Stations 2&ndash;4 replay recorded campus data and are labelled accordingly throughout this interface.</p>
-</footer>
-
-<script src="https://unpkg.com/mqtt@5.3.4/dist/mqtt.min.js"></script>
+<script src="portal-ui.js"></script>
 <script src="config.js"></script>
-<script src="app.js"></script>
+<script src="public.js"></script>
 </body>
 </html>
