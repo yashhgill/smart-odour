@@ -425,3 +425,5 @@ export class AuthGate extends DurableObject {
     });
   }
 }
+
+// Deployed via Workers Builds from GitHub.
