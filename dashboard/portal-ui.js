@@ -113,7 +113,7 @@ function addPortalSwitcher(current) {
 
   const links = [
     ['Admin Portal',   'admin.html', ICONS.system],
-    ['Student Portal', 'user.html',  ICONS.profile],
+    ['User Portal',    'user.html',  ICONS.profile],
     ['Public view',    'index.html', ICONS.map],
   ].filter(([label]) => label !== current);
 

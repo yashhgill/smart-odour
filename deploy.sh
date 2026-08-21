@@ -224,7 +224,7 @@ else
   say "  ${BLUE}https://smart-odour.pages.dev/admin.html${OFF}"
 fi
 say ""
-say "  Student portal: ${BLUE}https://smart-odour.pages.dev/user.html${OFF}"
+say "  User portal:   ${BLUE}https://smart-odour.pages.dev/user.html${OFF}"
 say "  ${DIM}Create an invite from System & Admin to register one.${OFF}"
 say ""
 say "  Still yours to do:"

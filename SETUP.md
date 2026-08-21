@@ -53,7 +53,7 @@ second admin, ever.
 
 ---
 
-## 2. Create a student account
+## 2. Create a user account
 
 1. Sign in to `/admin.html`.
 2. **System & Admin → Create invite**. A code appears; it lasts 72 hours and
@@ -340,12 +340,12 @@ Certified against the real runtime, 23 checks:
 
 - bootstrap creates the first admin, then returns 403 forever
 - invite issued, used once, refused on reuse and refused when absent
-- student registers, signs in, holds the `viewer` role
-- student blocked from calibration and the user list; admin allowed
-- **a student patching their own profile cannot promote themselves**
+- user registers, signs in, holds the `viewer` role
+- viewer blocked from calibration and the user list; admin allowed
+- **a viewer patching their own profile cannot promote themselves**
 - unsigned and wrongly-signed telemetry rejected
 - signed telemetry accepted, index computed, replayed reading deduped
-- community report filed by a student and reviewed by an admin
+- community report filed by a viewer and reviewed by an admin
 
 ## What is still not built
 

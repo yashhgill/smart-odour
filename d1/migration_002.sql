@@ -1,5 +1,5 @@
 -- ============================================================================
---  Migration 002 — student portal support
+--  Migration 002 — user portal support
 --
 --  NOT fully idempotent. The two CREATE statements are guarded, but SQLite has
 --  no "ADD COLUMN IF NOT EXISTS", so the ALTER at the end fails if this file

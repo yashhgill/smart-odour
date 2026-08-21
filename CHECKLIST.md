@@ -29,8 +29,8 @@ is deployed but **not yet confirmed by a human logging in**.
 - [ ] 🔴 **System & Admin → Create invite** — a code should appear
 - [ ] 🔴 **Alerts & Thresholds** → change MQ-6 warning to 1900 → **Apply**
       → should say "Calibration applied", not an error
-- [ ] 🔴 Register a student at `odour.harnova.my/user.html` with that invite code
-- [ ] 🟡 Sign in as the student, confirm **Alerts & Thresholds is refused** for them
+- [ ] 🔴 Register a user at `odour.harnova.my/user.html` with that invite code
+- [ ] 🟡 Sign in as that user, confirm **Alerts & Thresholds is refused** for them
 
 If any of these still fail, stop and tell me — everything downstream assumes
 auth works.

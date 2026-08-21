@@ -3,7 +3,7 @@
 | URL | Who | Login |
 |---|---|---|
 | `/` | anyone | no |
-| `/user.html` | students, residents | yes |
+| `/user.html` | residents, staff | yes |
 | `/admin.html` | facilities, admins | yes |
 
 All three share one session cookie, so signing in once covers the portals you

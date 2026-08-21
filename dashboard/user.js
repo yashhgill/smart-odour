@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Student portal logic. Shares the session cookie with the admin portal, so a
+   User portal logic. Shares the session cookie with the admin portal, so a
    user with the admin role can sign in to either — the server enforces what
    each role may actually do.
    ========================================================================== */
@@ -50,7 +50,7 @@ function showGate(show) {
 function swapForm(w) {
   $('form-login').style.display = w === 'login' ? '' : 'none';
   $('form-register').style.display = w === 'login' ? 'none' : '';
-  $('gate-sub').textContent = w === 'login' ? 'Student Portal' : 'Create Account';
+  $('gate-sub').textContent = w === 'login' ? 'User Portal' : 'Create Account';
 }
 
 async function attemptLogin() {
@@ -422,7 +422,7 @@ async function enterApp() {
 }
 
 async function boot() {
-  decorateChrome('Student Portal');
+  decorateChrome('User Portal');
   document.querySelectorAll('.nav button').forEach((b) =>
     b.addEventListener('click', () => goTo(b.dataset.sec)));
   $('li-go').addEventListener('click', attemptLogin);
