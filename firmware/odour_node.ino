@@ -1,45 +1,103 @@
 /* ===========================================================================
- *  Smart Odour Monitoring — ESP32 edge node
+ *  SMART ODOUR MONITORING PLATFORM — ESP32 EDGE NODE
+ *  Universiti Teknikal Malaysia Melaka
  *
- *  Publishes over HTTPS to a Cloudflare Worker. Each request body is signed
- *  with HMAC-SHA256 using a key shared with the Worker, so a reading cannot be
- *  forged by anyone who merely knows the URL.
+ *  ---------------------------------------------------------------------------
+ *  WIRING
+ *  ---------------------------------------------------------------------------
  *
- *  HARDWARE
- *    DHT11        data  -> GPIO 4
- *    MQ-5         AOUT  -> GPIO 32
- *    MQ-6         AOUT  -> GPIO 33
- *    MQ-7 (A)     AOUT  -> GPIO 34
- *    MQ-7 (B)     AOUT  -> GPIO 35
- *    LCD 16x2 I2C SDA   -> GPIO 21,  SCL -> GPIO 22,  address 0x27
- *    5V relay IN        -> GPIO 26   (exhaust fan, active LOW by default)
+ *   ESP32 pin   Connects to                    Notes
+ *   ---------   ---------------------------    ----------------------------
+ *   3V3         DHT11 VCC, display VCC         logic-level parts only
+ *   5V / VIN    MQ sensor VCC  (all four)      MQ heaters need 5V
+ *   GND         every GND                      MUST be common
  *
- *    The relay module takes 5V and GND from the board, but drive the FAN from
- *    its own supply through the relay contacts. Running a fan off the ESP32's
- *    regulator will brown it out mid-alert, which is the worst possible moment.
+ *   GPIO 4      DHT11  DATA                    add 10k to 3V3 if unstable
+ *   GPIO 32     MQ-5   AOUT
+ *   GPIO 33     MQ-6   AOUT
+ *   GPIO 34     MQ-7   AOUT  (#1)              input-only pin
+ *   GPIO 35     MQ-7   AOUT  (#2)              input-only pin
+ *   GPIO 21     display SDA                    I2C data
+ *   GPIO 22     display SCL                    I2C clock
+ *   GPIO 26     relay  IN                      exhaust fan
  *
- *    GPIO 34 and 35 are input-only and have no internal pull-ups. That is fine
- *    for analogue sensors but means you cannot drive anything from them.
- *    All four MQ pins are on ADC1 on purpose: ADC2 is unusable while WiFi is
- *    active, which is the classic "readings freeze once it connects" bug.
+ *  WHY THESE PINS
  *
- *  LIBRARIES (Arduino IDE -> Library Manager)
- *    "DHT sensor library" by Adafruit  (plus "Adafruit Unified Sensor")
- *    "LiquidCrystal I2C" by Frank de Brabander
- *    Board package: esp32 by Espressif
+ *   All four gas sensors are on ADC1. ADC2 pins (0, 2, 4, 12-15, 25-27) cannot
+ *   be read while WiFi is active — a sensor there works on the bench and then
+ *   freezes the moment the node joins the network, which looks like a dead
+ *   sensor rather than a pin conflict. Do not move them.
+ *
+ *   GPIO 34 and 35 are input-only. Fine for sensors, but nothing can be driven
+ *   from them.
+ *
+ *   GPIO 26 is an ADC2 pin, but it is used here as a digital output, so the
+ *   WiFi restriction does not apply.
+ *
+ *  POWER
+ *
+ *   Four MQ heaters draw roughly 600-800 mA together. A laptop USB port often
+ *   cannot supply that alongside the ESP32 and display. Board resetting,
+ *   display flickering, or readings sagging when everything is connected are
+ *   all brownout — use a 5V 2A supply.
+ *
+ *   Drive the FAN from its own supply through the relay contacts (COM and NO).
+ *   Never power a fan from the ESP32 regulator.
+ *
+ *  RELAY
+ *
+ *   Most 5V relay boards are ACTIVE LOW — the coil energises when IN goes LOW.
+ *   If the fan runs constantly and stops during an alert, set
+ *   RELAY_ACTIVE_LOW to 0 below.
+ *
+ *  ---------------------------------------------------------------------------
+ *  LIBRARIES  (Arduino IDE -> Library Manager)
+ *  ---------------------------------------------------------------------------
+ *   DHT sensor library        by Adafruit  (+ Adafruit Unified Sensor)
+ *   Adafruit SSD1306          by Adafruit  ]  for the OLED
+ *   Adafruit GFX Library      by Adafruit  ]
+ *   LiquidCrystal I2C         by Frank de Brabander   only if using an LCD
+ *
+ *   Board: "ESP32 Dev Module", esp32 package by Espressif.
  *
  *  BEFORE UPLOADING
- *    Copy secrets.example.h to secrets.h and fill in all five values.
+ *   1. Copy secrets.example.h to secrets.h and fill it in.
+ *   2. Set DISPLAY_TYPE below to match your hardware.
+ *   3. Upload, then open Serial Monitor at 115200.
  * =========================================================================== */
+
+/* --------------------------------------------------------------------------
+ *  DISPLAY SELECTION — set this to match what you actually have
+ * -------------------------------------------------------------------------- */
+#define DISPLAY_OLED_SSD1306  1   /* 128x64 OLED, the usual 0.96" module      */
+#define DISPLAY_LCD_1602      2   /* 16x2 character LCD with I2C backpack     */
+#define DISPLAY_NONE          3   /* serial output only                        */
+
+#define DISPLAY_TYPE  DISPLAY_OLED_SSD1306
+
+/* Blank OLED? Try 0x3D. This sketch prints every I2C address it finds at boot. */
+#define OLED_ADDRESS  0x3C
+#define OLED_WIDTH    128
+#define OLED_HEIGHT   64
+#define LCD_ADDRESS   0x27
+
 
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <Wire.h>
-#include <LiquidCrystal_I2C.h>
 #include <DHT.h>
 #include <time.h>
 #include "mbedtls/md.h"
+
+#if DISPLAY_TYPE == DISPLAY_OLED_SSD1306
+  #include <Adafruit_GFX.h>
+  #include <Adafruit_SSD1306.h>
+  Adafruit_SSD1306 display(OLED_WIDTH, OLED_HEIGHT, &Wire, -1);
+#elif DISPLAY_TYPE == DISPLAY_LCD_1602
+  #include <LiquidCrystal_I2C.h>
+  LiquidCrystal_I2C lcd(LCD_ADDRESS, 16, 2);
+#endif
 
 #include "secrets.h"
 
@@ -62,22 +120,20 @@
 #define RELAY_PIN        26
 #define RELAY_ACTIVE_LOW 1
 
-#define LCD_ADDRESS 0x27
-#define LCD_COLS    16
-#define LCD_ROWS    2
+#define SDA_PIN     21
+#define SCL_PIN     22
 
 DHT dht(DHT_PIN, DHT_TYPE);
-LiquidCrystal_I2C lcd(LCD_ADDRESS, LCD_COLS, LCD_ROWS);
 
 /* ---------------------------------------------------------------- timing -- */
 const unsigned long SAMPLE_INTERVAL_MS = 8000;   // matches the 8s design figure
-const unsigned long LCD_PAGE_MS        = 2000;
+const unsigned long SCREEN_PAGE_MS        = 2000;
 const unsigned long WIFI_RETRY_MS      = 20000;
 
 unsigned long lastSample = 0;
-unsigned long lastLcdFlip = 0;
+unsigned long lastPageFlip = 0;
 unsigned long lastWifiTry = 0;
-uint8_t lcdPage = 0;
+uint8_t page = 0;
 
 /* -------------------------------------------------------- offline buffer -- */
 /*  When the network is down, readings are kept here and replayed later. Each
@@ -283,7 +339,7 @@ void drainBuffer() {
 struct Reading {
   float temperature, humidity;
   int mq5, mq6, mq7a, mq7b;
-  bool valid;
+  bool climateOk;
 };
 
 Reading readSensors() {
@@ -297,8 +353,8 @@ Reading readSensors() {
 
   // DHT11 fails a read fairly often. Keep the gas values, blank the climate
   // ones, and let the server store nulls rather than throwing the sample away.
-  r.valid = !(isnan(r.temperature) || isnan(r.humidity));
-  if (!r.valid) { r.temperature = NAN; r.humidity = NAN; }
+  r.climateOk = !(isnan(r.temperature) || isnan(r.humidity));
+  if (!r.climateOk) { r.temperature = NAN; r.humidity = NAN; }
   return r;
 }
 
@@ -322,39 +378,98 @@ const char* bandOf(float idx) {
   return "NORMAL";
 }
 
-/* ------------------------------------------------------------------- lcd -- */
-/*  Rotates pages on a timer instead of delay(), so nothing blocks the loop.
- *  The old sketch spent 6 of every 8 seconds inside delay() calls.            */
+/* --------------------------------------------------------------- display -- */
 
-void lcdRender(const Reading& r, float idx) {
-  lcd.clear();
-  switch (lcdPage) {
-    case 0:
-      lcd.setCursor(0, 0); lcd.print("Odour ");
-      lcd.print(idx, 1);
-      lcd.setCursor(0, 1); lcd.print(bandOf(idx));
-      break;
-    case 1:
-      lcd.setCursor(0, 0);
-      if (r.valid) { lcd.print("T "); lcd.print(r.temperature, 1); lcd.print((char)223); lcd.print("C"); }
-      else         { lcd.print("T --"); }
-      lcd.setCursor(0, 1);
-      if (r.valid) { lcd.print("RH "); lcd.print(r.humidity, 0); lcd.print("%"); }
-      else         { lcd.print("RH --"); }
-      break;
-    case 2:
-      lcd.setCursor(0, 0); lcd.print("MQ5 "); lcd.print(r.mq5);
-      lcd.setCursor(0, 1); lcd.print("MQ6 "); lcd.print(r.mq6);
-      break;
-    default:
-      lcd.setCursor(0, 0);
-      lcd.print(WiFi.status() == WL_CONNECTED ? "WiFi OK" : "WiFi DOWN");
-      lcd.setCursor(0, 1);
-      if (exhaustOn)         { lcd.print("EXHAUST ON"); }
-      else if (bufCount > 0) { lcd.print("Queued "); lcd.print(bufCount); }
-      else                   { lcd.print("Synced"); }
-      break;
+void displayBegin() {
+#if DISPLAY_TYPE == DISPLAY_OLED_SSD1306
+  if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS)) {
+    Serial.println(F("[oled] not found - try 0x3D, and check SDA/SCL"));
+    return;
   }
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.println(F("Smart Odour"));
+  display.println(F("starting..."));
+  display.display();
+#elif DISPLAY_TYPE == DISPLAY_LCD_1602
+  lcd.init();
+  lcd.backlight();
+  lcd.setCursor(0, 0); lcd.print("Smart Odour");
+  lcd.setCursor(0, 1); lcd.print("starting...");
+#endif
+}
+
+/*  The index is the number someone reads from across a room, so on the OLED it
+ *  gets the large type and everything else rotates underneath it.             */
+void displayRender(const Reading& r, float idx) {
+#if DISPLAY_TYPE == DISPLAY_OLED_SSD1306
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.print(F("ODOUR INDEX"));
+
+  display.setTextSize(3);
+  display.setCursor(0, 12);
+  display.print(idx, 1);
+
+  display.setTextSize(1);
+  display.setCursor(0, 40);
+  display.print(bandOf(idx));
+
+  display.setCursor(0, 53);
+  if (page == 0) {
+    if (r.climateOk) { display.print(r.temperature, 1); display.print(F("C  "));
+                       display.print(r.humidity, 0);    display.print(F("%")); }
+    else             { display.print(F("climate sensor --")); }
+  } else if (page == 1) {
+    display.print(F("MQ5 ")); display.print(r.mq5);
+    display.print(F(" MQ6 ")); display.print(r.mq6);
+  } else if (page == 2) {
+    display.print(F("CO ")); display.print(r.mq7a);
+    display.print(F(" / "));  display.print(r.mq7b);
+  } else {
+    if (exhaustOn)                          display.print(F("EXHAUST ON"));
+    else if (bufCount > 0)                { display.print(F("Queued ")); display.print(bufCount); }
+    else if (WiFi.status() == WL_CONNECTED) display.print(F("Online"));
+    else                                    display.print(F("WiFi down"));
+  }
+  display.display();
+
+#elif DISPLAY_TYPE == DISPLAY_LCD_1602
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Odour "); lcd.print(idx, 1);
+  lcd.setCursor(0, 1);
+  if (page == 0)      lcd.print(bandOf(idx));
+  else if (page == 1) { if (r.climateOk) { lcd.print(r.temperature, 1); lcd.print("C ");
+                                           lcd.print(r.humidity, 0); lcd.print("%"); }
+                        else lcd.print("climate --"); }
+  else if (page == 2) { lcd.print("MQ6 "); lcd.print(r.mq6); }
+  else                { if (exhaustOn) lcd.print("EXHAUST ON");
+                        else if (bufCount) { lcd.print("Queued "); lcd.print(bufCount); }
+                        else lcd.print("Online"); }
+#endif
+}
+
+/*  Prints every I2C address found. If the display stays blank this tells you
+ *  whether it is even on the bus, which saves a lot of rewiring.              */
+void scanI2C() {
+  Serial.println(F("[i2c] scanning..."));
+  uint8_t found = 0;
+  for (uint8_t addr = 1; addr < 127; addr++) {
+    Wire.beginTransmission(addr);
+    if (Wire.endTransmission() == 0) {
+      Serial.print(F("[i2c] device at 0x"));
+      if (addr < 16) Serial.print('0');
+      Serial.println(addr, HEX);
+      found++;
+    }
+  }
+  if (!found) Serial.println(F("[i2c] nothing found - check SDA/SCL and power"));
 }
 
 /* ----------------------------------------------------------------- setup -- */
@@ -363,11 +478,9 @@ void setup() {
   delay(300);
   Serial.println(F("\n=== Smart Odour Node ==="));
 
-  Wire.begin(21, 22);
-  lcd.init();
-  lcd.backlight();
-  lcd.setCursor(0, 0); lcd.print("Odour Monitor");
-  lcd.setCursor(0, 1); lcd.print("starting...");
+  Wire.begin(SDA_PIN, SCL_PIN);
+  scanI2C();
+  displayBegin();
 
   dht.begin();
 
@@ -401,9 +514,9 @@ void loop() {
 
   unsigned long now = millis();
 
-  if (now - lastLcdFlip >= LCD_PAGE_MS) {
-    lastLcdFlip = now;
-    lcdPage = (lcdPage + 1) % 4;
+  if (now - lastPageFlip >= SCREEN_PAGE_MS) {
+    lastPageFlip = now;
+    page = (page + 1) % 4;
   }
 
   if (now - lastSample >= SAMPLE_INTERVAL_MS) {
@@ -412,7 +525,7 @@ void loop() {
     Reading r = readSensors();
     float idx = odourIndex(r);
     updateExhaust(idx);
-    lcdRender(r, idx);
+    displayRender(r, idx);
 
     char ts[24] = "";
     bool haveTime = timeReady();
@@ -421,7 +534,7 @@ void loop() {
     seqCounter++;
 
     char body[PAYLOAD_MAX];
-    if (r.valid) {
+    if (r.climateOk) {
       snprintf(body, sizeof(body),
         "{\"node_id\":\"%s\",\"zone_id\":%d,\"temperature\":%.1f,\"humidity\":%.1f,"
         "\"mq5\":%d,\"mq6\":%d,\"mq7_1\":%d,\"mq7_2\":%d,\"rssi\":%d,\"seq\":%lu%s%s%s}",
