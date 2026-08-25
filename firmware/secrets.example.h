@@ -1,22 +1,23 @@
 // ---------------------------------------------------------------------------
-//  secrets.h  —  copy this file to secrets.h, fill it in, never commit it.
-//  .gitignore already excludes secrets.h. Keep it that way.
+//  secrets.h  —  salin fail ini kepada secrets.h, isi nilai, jangan commit.
+//  Kunci peribadi TIDAK BOLEH ada dalam fail .ino. Itu sebab sijil AWS
+//  dalam kod asal terdedah.
 // ---------------------------------------------------------------------------
 #pragma once
 
-// The ESP32 has no 5GHz radio, so this must be a 2.4GHz network.
-// Campus WiFi with a captive login page will not work — use a phone hotspot.
-#define WIFI_SSID      "YOUR_WIFI_NAME"
-#define WIFI_PASSWORD  "YOUR_WIFI_PASSWORD"
+// ESP32 tiada radio 5GHz, jadi ini mesti rangkaian 2.4GHz.
+// WiFi kampus dengan halaman log masuk tidak akan berfungsi — guna hotspot.
+#define WIFI_SSID      "NAMA_WIFI_ANDA"
+#define WIFI_PASSWORD  "KATA_LALUAN_WIFI"
 
-// Must match the DEVICE_KEY secret stored on the Worker, exactly.
-// A mismatch shows up only as "[post] HTTP 401" in the serial monitor —
-// the node looks healthy and no data ever arrives.
-#define DEVICE_KEY     "PASTE_YOUR_64_CHAR_HEX_KEY_HERE"
+// Mesti SAMA PERSIS dengan secret DEVICE_KEY pada Cloudflare Worker.
+// Kalau tak sama, satu-satunya tanda ialah "[SEND] HTTP 401" di Serial
+// Monitor — node nampak sihat tapi tiada data sampai.
+#define DEVICE_KEY     "TAMPAL_KUNCI_HEX_64_AKSARA_DI_SINI"
 
 #define INGEST_HOST    "odour-router.yashchaal99.workers.dev"
 #define INGEST_PATH    "/api/ingest"
 
-// Which station this board is. Zone 1 is the physical node.
 #define NODE_ID        "ESP32_01"
+#define NODE_LOCATION  "Kolej Kediaman Lekiu"
 #define ZONE_ID        1
