@@ -43,7 +43,7 @@ function corsHeaders(request, env) {
   return {
     'Access-Control-Allow-Origin': ok ? origin : (allowed[0] || ''),
     'Access-Control-Allow-Credentials': 'true',
-    'Access-Control-Allow-Methods': 'GET,POST,PATCH,OPTIONS',
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type,X-Admin-Token,X-Signature,X-Node-Id',
     'Vary': 'Origin',
   };
