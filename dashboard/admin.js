@@ -220,7 +220,12 @@ async function loadHome() {
     zones = z;
 
 
-    $('node-state').textContent = live ? `Reporting (${physicalZone ? physicalZone.code : 'Zone ?'})` : 'Awaiting hardware';
+    $('node-state').textContent = live
+      ? `Reporting (${physicalZone ? physicalZone.code : 'Zone ?'})`
+      : physicalZone ? `Offline — last seen ${ago(physicalZone.ts)}` : 'Awaiting hardware';
+    const nodeSub = $('node-sub');
+    if (nodeSub && physicalZone) nodeSub.textContent =
+      `Raw 12-bit ADC values (0–4095) from the physical node at ${physicalZone.zone_name}.`;
     $('node-state').className = 'pill ' + (live ? 'pill--green' : 'pill--grey');
 
     // Physical zone follows the database flag — set automatically by ingest
@@ -228,7 +233,7 @@ async function loadHome() {
     const physicalZone = latest.find((r) => r.is_physical);
     const node = physicalZone || {};
     const live = physicalZone && physicalZone.ts &&
-                 (Date.now() - new Date(physicalZone.ts).getTime()) < 10 * 60 * 1000;
+                 (Date.now() - new Date(physicalZone.ts).getTime()) < 60 * 60 * 1000;
 
     const worst = latest
       .filter((r) => r.aqi_score !== null && r.aqi_score !== undefined)
