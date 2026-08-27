@@ -8,3 +8,6 @@ worker/.wrangler/
 .DS_Store
 
 DEVICE_KEY.txt
+
+# single-file sketch holds credentials inline
+firmware/odour_node_all_in_one.ino
