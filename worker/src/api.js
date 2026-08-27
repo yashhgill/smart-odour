@@ -189,6 +189,25 @@ export async function storeReading(env, payload, ctx) {
 
   const status = band(reading.aqi_score);
 
+  // Auto-follow the sketch's ZONE_ID. When the node posts to zone 2,
+  // mark zone 2 as the physical node and clear is_physical on every other
+  // zone. This means changing ZONE_ID in the sketch automatically moves the
+  // hardware marker on the map without anyone touching the database.
+  // Only applies to live readings — replayed buffer entries are old data
+  // and should not move the physical marker.
+  if (!payload.replayed) {
+    ctx.waitUntil((async () => {
+      try {
+        await env.DB.batch([
+          env.DB.prepare(`update zones set is_physical = 0 where is_physical = 1 and id != ?1`)
+            .bind(reading.zone_id),
+          env.DB.prepare(`update zones set is_physical = 1 where id = ?1`)
+            .bind(reading.zone_id),
+        ]);
+      } catch { /* zone table update failure is non-fatal */ }
+    })());
+  }
+
   // Fan out to dashboards immediately; do not make the node wait for it.
   ctx.waitUntil(broadcast(env, { ...reading, status }));
 
