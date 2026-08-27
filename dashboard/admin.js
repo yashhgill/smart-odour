@@ -219,11 +219,16 @@ async function loadHome() {
     const [z, latest] = await Promise.all([api('/zones'), api('/latest')]);
     zones = z;
 
-    const node = latest.find((r) => r.zone_id === 1) || {};
-    const live = node.status && node.status !== 'offline';
 
-    $('node-state').textContent = live ? 'Reporting' : 'Awaiting hardware';
+    $('node-state').textContent = live ? `Reporting (${physicalZone ? physicalZone.code : 'Zone ?'})` : 'Awaiting hardware';
     $('node-state').className = 'pill ' + (live ? 'pill--green' : 'pill--grey');
+
+    // Physical zone follows the database flag — set automatically by ingest
+    // when the ESP32 posts. No hardcoding.
+    const physicalZone = latest.find((r) => r.is_physical);
+    const node = physicalZone || {};
+    const live = physicalZone && physicalZone.ts &&
+                 (Date.now() - new Date(physicalZone.ts).getTime()) < 10 * 60 * 1000;
 
     const worst = latest
       .filter((r) => r.aqi_score !== null && r.aqi_score !== undefined)
@@ -234,8 +239,8 @@ async function loadHome() {
              worst ? `${esc(worst.zone_name)} · ${worst.status}` : 'no readings',
              worst ? worst.status : 'idle')}
       ${card('Stations reporting', `${latest.filter((r) => r.ts).length} / ${latest.length}`,
-             'Zone 1 is physical, 2–4 replayed', 'idle')}
-      ${card('Node 01', live ? 'Online' : 'Offline', live ? ago(node.ts) : 'no telemetry received',
+             physicalZone ? `${esc(physicalZone.code)} is hardware` : 'no hardware yet', 'idle')}
+      ${card(physicalZone ? `Node · ${esc(physicalZone.code)}` : 'Node', live ? 'Online' : 'Offline', live ? ago(node.ts) : 'no telemetry received',
              live ? 'normal' : 'idle')}
       ${card('Campus mean', latest.filter((r) => r.aqi_score != null).length
              ? fmt(latest.filter((r) => r.aqi_score != null)
@@ -250,6 +255,11 @@ async function loadHome() {
       ${card('MQ-6 (Butane)', node.mq6 != null ? fmt(node.mq6) : '---- ', 'ADC', 'idle')}
       ${card('MQ-7 #1 (CO)', node.mq7_1 != null ? fmt(node.mq7_1) : '---- ', 'ADC', 'idle')}
       ${card('MQ-7 #2 (CO)', node.mq7_2 != null ? fmt(node.mq7_2) : '---- ', 'ADC', 'idle')}`;
+
+    const sub = $('stations-sub');
+    if (sub) sub.textContent = physicalZone
+      ? `${physicalZone.code} (${physicalZone.zone_name}) is the active hardware node. Other zones replay recorded data.`
+      : 'No hardware node detected yet. Waiting for first live reading.';
 
     $('zones-body').innerHTML = latest.map((r) => `
       <tr>
