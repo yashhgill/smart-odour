@@ -10,6 +10,7 @@ import { DurableObject } from 'cloudflare:workers';
 import * as api from './api.js';
 import * as auth from './auth.js';
 import * as telegram from './telegram.js';
+import * as forecast from './forecast.js';
 
 /** Bumped on every packaged release. GET /api/version to see what is live. */
 const BUILD = '20260821-1518';
@@ -229,7 +230,9 @@ export default {
 
       /* ---------------- forecasts ---------------- */
       if (path === '/predict' && method === 'GET') {
-        return json(await api.getPrediction(env, url), request, env);
+        const zoneId = parseInt(url.searchParams.get('zone_id'), 10) || 1;
+        const result = await forecast.predictZone(env, zoneId);
+        return json(result, request, env);
       }
 
       // Written only by the Render sidecar, authenticated with a shared token
