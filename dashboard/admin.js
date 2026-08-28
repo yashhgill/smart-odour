@@ -283,10 +283,19 @@ async function loadHome() {
       sel.innerHTML = zones.map((z) =>
         `<option value="${z.id}">${esc(z.code)} — ${esc(z.name)}</option>`).join('');
     }
-  } catch {
-    $('home-cards').innerHTML = `<div class="card"><div class="card__label">Connection</div>
-      <div class="card__value v-hazardous" style="font-size:18px">Unreachable</div>
-      <div class="card__foot">The API did not respond.</div></div>`;
+  } catch (err) {
+    const hc = $('home-cards');
+    if (hc) hc.innerHTML = `
+      <div class="card">
+        <div class="card__label">Connection</div>
+        <div class="card__value v-hazardous" style="font-size:18px">Unreachable</div>
+        <div class="card__foot">The API did not respond. <a href="#" onclick="renderHome();return false">Retry</a></div>
+      </div>`;
+    // Still try to populate zone dropdowns from a simpler endpoint
+    try {
+      const zd = await fetch(API_BASE + '/zones').then(r=>r.json());
+      if (Array.isArray(zd)) zones.splice(0, zones.length, ...zd);
+    } catch { /* truly offline */ }
   }
 }
 
@@ -300,7 +309,26 @@ function card(label, value, foot, tone = 'idle') {
 
 /* ------------------------------------------------------------------- data -- */
 
+async function ensureZoneDropdowns() {
+  // Populate all zone dropdowns that are still empty.
+  // Called on any tab switch so they work even if Home wasn't visited first.
+  if (!zones.length) {
+    try {
+      const zd = await api('/zones');
+      zones.splice(0, zones.length, ...zd);
+    } catch { return; }
+  }
+  for (const id of ['q-zone','ai-zone']) {
+    const sel = $(id);
+    if (sel && !sel.options.length) {
+      sel.innerHTML = zones.map((z) =>
+        `<option value="${z.id}">${esc(z.code)} — ${esc(z.name)}</option>`).join('');
+    }
+  }
+}
+
 async function runQuery() {
+  await ensureZoneDropdowns();
   const btn = $('q-go');
   btn.disabled = true;
   btn.textContent = 'Querying…';
