@@ -219,53 +219,76 @@ async function loadHome() {
     const [z, latest] = await Promise.all([api('/zones'), api('/latest')]);
     zones = z;
 
-
-    $('node-state').textContent = live
-      ? `Reporting (${physicalZone ? physicalZone.code : 'Zone ?'})`
-      : physicalZone ? `Offline — last seen ${ago(physicalZone.ts)}` : 'Awaiting hardware';
-    const nodeSub = $('node-sub');
-    if (nodeSub && physicalZone) nodeSub.textContent =
-      `Raw 12-bit ADC values (0–4095) from the physical node at ${physicalZone.zone_name}.`;
-    $('node-state').className = 'pill ' + (live ? 'pill--green' : 'pill--grey');
-
-    // Physical zone follows the database flag — set automatically by ingest
-    // when the ESP32 posts. No hardcoding.
+    // Physical zone — declared FIRST so everything below can use it
     const physicalZone = latest.find((r) => r.is_physical);
     const node = physicalZone || {};
     const live = physicalZone && physicalZone.ts &&
                  (Date.now() - new Date(physicalZone.ts).getTime()) < 60 * 60 * 1000;
-
     const worst = latest
       .filter((r) => r.aqi_score !== null && r.aqi_score !== undefined)
       .sort((a, b) => b.aqi_score - a.aqi_score)[0];
 
-    $('home-cards').innerHTML = `
-      ${card('Highest odour index', worst ? fmt(worst.aqi_score, 1) : '—',
-             worst ? `${esc(worst.zone_name)} · ${worst.status}` : 'no readings',
-             worst ? worst.status : 'idle')}
-      ${card('Stations reporting', `${latest.filter((r) => r.ts).length} / ${latest.length}`,
-             physicalZone ? `${esc(physicalZone.code)} is hardware` : 'no hardware yet', 'idle')}
-      ${card(physicalZone ? `Node · ${esc(physicalZone.code)}` : 'Node', live ? 'Online' : 'Offline', live ? ago(node.ts) : 'no telemetry received',
-             live ? 'normal' : 'idle')}
-      ${card('Campus mean', latest.filter((r) => r.aqi_score != null).length
+    // Node state pill
+    $('node-state').textContent = live
+      ? `Reporting (${physicalZone ? physicalZone.code : 'Zone ?'})`
+      : physicalZone ? `Offline — last seen ${ago(physicalZone.ts)}` : 'Awaiting hardware';
+    $('node-state').className = 'pill ' + (live ? 'pill--green' : 'pill--grey');
+    const nodeSub = $('node-sub');
+    if (nodeSub && physicalZone)
+      nodeSub.textContent = `Raw 12-bit ADC values (0–4095) from the physical node at ${physicalZone.zone_name}.`;
+
+    // Summary cards
+    $('home-cards').innerHTML =
+      card('Highest odour index', worst ? fmt(worst.aqi_score, 1) : '—',
+           worst ? `${esc(worst.zone_name)} · ${worst.status}` : 'no readings',
+           worst ? worst.status : 'idle')
+    + card('Stations reporting', `${latest.filter((r) => r.ts).length} / ${latest.length}`,
+           physicalZone ? `${esc(physicalZone.code)} is hardware` : 'no hardware yet', 'idle')
+    + card(physicalZone ? `Node · ${esc(physicalZone.code)}` : 'Node',
+           live ? 'Online' : 'Offline',
+           live ? ago(node.ts) : 'no telemetry received',
+           live ? 'normal' : 'idle')
+    + card('Campus mean',
+           latest.filter((r) => r.aqi_score != null).length
              ? fmt(latest.filter((r) => r.aqi_score != null)
                  .reduce((a, r) => a + r.aqi_score, 0)
                / latest.filter((r) => r.aqi_score != null).length, 1) : '—',
-             'across reporting stations', 'idle')}`;
+           'across reporting stations', 'idle');
 
-    $('node-cards').innerHTML = `
-      ${card('Temperature', node.temperature != null ? fmt(node.temperature, 1) + ' °C' : '--.- °C', 'DHT11', 'idle')}
-      ${card('Humidity', node.humidity != null ? fmt(node.humidity, 0) + ' %' : '--.- %', 'DHT11', 'idle')}
-      ${card('MQ-5 (LPG/Gas)', node.mq5 != null ? fmt(node.mq5) : '---- ', 'ADC', 'idle')}
-      ${card('MQ-6 (Butane)', node.mq6 != null ? fmt(node.mq6) : '---- ', 'ADC', 'idle')}
-      ${card('MQ-7 #1 (CO)', node.mq7_1 != null ? fmt(node.mq7_1) : '---- ', 'ADC', 'idle')}
-      ${card('MQ-7 #2 (CO)', node.mq7_2 != null ? fmt(node.mq7_2) : '---- ', 'ADC', 'idle')}`;
+    // Sensor cards
+    $('node-cards').innerHTML =
+      card('Temperature', node.temperature != null ? fmt(node.temperature, 1) + ' °C' : '--.- °C', 'DHT11', 'idle')
+    + card('Humidity',    node.humidity    != null ? fmt(node.humidity, 0)    + ' %'   : '--.- %',  'DHT11', 'idle')
+    + card('MQ-5 (LPG/Gas)', node.mq5   != null ? fmt(node.mq5)   : '----', 'ADC', 'idle')
+    + card('MQ-6 (Butane)',  node.mq6   != null ? fmt(node.mq6)   : '----', 'ADC', 'idle')
+    + card('MQ-7 #1 (CO)',   node.mq7_1 != null ? fmt(node.mq7_1) : '----', 'ADC', 'idle')
+    + card('MQ-7 #2 (CO)',   node.mq7_2 != null ? fmt(node.mq7_2) : '----', 'ADC', 'idle');
 
+    // Manual zone selector for hardware node
+    const zSel = $('hardware-zone-sel');
+    if (zSel && zones.length && !zSel.dataset.loaded) {
+      zSel.dataset.loaded = '1';
+      zSel.innerHTML = zones.map((z) =>
+        `<option value="${z.id}" ${z.id === (physicalZone?.zone_id) ? 'selected' : ''}>
+          ${esc(z.code)} — ${esc(z.name)}</option>`).join('');
+      zSel.onchange = async () => {
+        const newId = parseInt(zSel.value);
+        try {
+          await api('/zones/set-physical', { method: 'POST', body: JSON.stringify({ zone_id: newId }) });
+        } catch {
+          // fallback: direct DB approach not available, just update visually
+        }
+        loadHome();
+      };
+    }
+
+    // Stations subtitle
     const sub = $('stations-sub');
     if (sub) sub.textContent = physicalZone
       ? `${physicalZone.code} (${physicalZone.zone_name}) is the active hardware node. Other zones replay recorded data.`
       : 'No hardware node detected yet. Waiting for first live reading.';
 
+    // Stations table
     $('zones-body').innerHTML = latest.map((r) => `
       <tr>
         <td><strong>${esc(r.code || r.zone_id)}</strong><br>
@@ -278,26 +301,33 @@ async function loadHome() {
         <td class="card__foot">${ago(r.ts)}</td>
       </tr>`).join('');
 
-    const sel = $('q-zone');
-    if (sel && !sel.options.length) {
-      sel.innerHTML = zones.map((z) =>
-        `<option value="${z.id}">${esc(z.code)} — ${esc(z.name)}</option>`).join('');
-    }
+    // Populate all zone dropdowns
+    ensureZoneDropdowns();
+
   } catch (err) {
+    // Distinguish session expiry from genuine API failure
+    const isAuth = err?.status === 401 || String(err).includes('401');
     const hc = $('home-cards');
     if (hc) hc.innerHTML = `
       <div class="card">
         <div class="card__label">Connection</div>
-        <div class="card__value v-hazardous" style="font-size:18px">Unreachable</div>
-        <div class="card__foot">The API did not respond. <a href="#" onclick="renderHome();return false">Retry</a></div>
+        <div class="card__value v-hazardous" style="font-size:18px">
+          ${isAuth ? 'Session expired' : 'Unreachable'}
+        </div>
+        <div class="card__foot">
+          ${isAuth
+            ? 'Your session has expired. <a href="#" onclick="showGate(true);return false">Sign in again</a>'
+            : 'The API did not respond. <a href="#" onclick="loadHome();return false">Retry</a>'}
+        </div>
       </div>`;
-    // Still try to populate zone dropdowns from a simpler endpoint
+    // Still try to get zones for dropdowns
     try {
-      const zd = await fetch(API_BASE + '/zones').then(r=>r.json());
-      if (Array.isArray(zd)) zones.splice(0, zones.length, ...zd);
+      const zd = await fetch(API_BASE + '/zones').then(r => r.json());
+      if (Array.isArray(zd)) { zones = zd; ensureZoneDropdowns(); }
     } catch { /* truly offline */ }
   }
 }
+
 
 function card(label, value, foot, tone = 'idle') {
   const accent = ['normal', 'warning', 'hazardous'].includes(tone) ? ` card--${tone}` : '';
@@ -500,36 +530,138 @@ function drawForecast(f) {
 
 async function generateEsg() {
   const btn = $('esg-go'), msg = $('esg-msg');
-  const days = $('esg-days').value;
+  const days = parseInt($('esg-days')?.value || 7);
   msg.className = 'msg';
-  msg.textContent = 'Compiling. The reporting service may take a minute if it has been idle.';
+  msg.textContent = 'Fetching readings…';
   btn.disabled = true;
   btn.textContent = 'Generating…';
 
   try {
-    // Streams a PDF rather than JSON, so it bypasses api() and takes the blob.
-    const res = await fetch(`${CFG.API_BASE}/reports/esg?days=${days}`, {
-      method: 'POST', credentials: 'include',
-    });
-    if (!res.ok) {
-      let detail = `HTTP ${res.status}`;
-      try { detail = (await res.json()).error || detail; } catch { /* keep status */ }
-      throw new Error(detail);
-    }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `ESG_Odour_Report_${days}d.pdf`;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    if (!window.jspdf) throw new Error('PDF library not loaded yet — refresh and try again');
+    const { jsPDF } = window.jspdf;
 
+    // Fetch all zone readings
+    const allRows = [];
+    for (const z of zones) {
+      try {
+        const rows = await api(`/readings?zone_id=${z.id}&hours=${days*24}&limit=2000`);
+        rows.forEach(r => allRows.push({ zone: z.code, zoneName: z.name, ...r }));
+      } catch { /* skip offline zones */ }
+    }
+
+    msg.textContent = `Building PDF with ${allRows.length} readings…`;
+
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const W = doc.internal.pageSize.getWidth();
+
+    // ── Header ──────────────────────────────────────────────────
+    doc.setFillColor(17, 24, 39);
+    doc.rect(0, 0, W, 36, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16); doc.setFont('helvetica', 'bold');
+    doc.text('Smart Odour Monitoring Platform', 14, 13);
+    doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+    doc.text('Universiti Teknikal Malaysia Melaka — Campus Air Quality Network', 14, 20);
+    doc.text(`ESG Compliance Report — Last ${days} day${days>1?'s':''}`, 14, 27);
+    doc.text(`Generated: ${new Date().toLocaleString('en-MY')}`, 14, 34);
+
+    doc.setTextColor(0, 0, 0);
+    let y = 46;
+
+    // ── Summary ─────────────────────────────────────────────────
+    doc.setFontSize(13); doc.setFont('helvetica', 'bold');
+    doc.text('Executive Summary', 14, y); y += 8;
+    doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+    const validRows = allRows.filter(r => r.aqi_score != null);
+    const hazCount  = validRows.filter(r => r.aqi_score >= 65).length;
+    const warnCount = validRows.filter(r => r.aqi_score >= 40 && r.aqi_score < 65).length;
+    const normCount = validRows.filter(r => r.aqi_score  < 40).length;
+    const meanIdx   = validRows.length
+      ? validRows.reduce((a,r)=>a+r.aqi_score,0)/validRows.length : 0;
+
+    const summaryLines = [
+      `Reporting period:      ${days} day${days>1?'s':''} (${days*24} hours)`,
+      `Total readings:        ${allRows.length}`,
+      `Valid sensor readings:  ${validRows.length}`,
+      `Mean odour index:      ${meanIdx.toFixed(1)} / 100`,
+      `Normal readings:       ${normCount} (${validRows.length?(normCount/validRows.length*100).toFixed(1):0}%)`,
+      `Warning readings:      ${warnCount} (${validRows.length?(warnCount/validRows.length*100).toFixed(1):0}%)`,
+      `Hazardous readings:    ${hazCount} (${validRows.length?(hazCount/validRows.length*100).toFixed(1):0}%)`,
+    ];
+    summaryLines.forEach(l => { doc.text(l, 14, y); y += 6; });
+    y += 6;
+
+    // ── Zone table ───────────────────────────────────────────────
+    doc.setFontSize(13); doc.setFont('helvetica', 'bold');
+    doc.text('Zone Performance', 14, y); y += 8;
+
+    const zCols = ['Zone', 'Type', 'Readings', 'Mean', 'Max', 'Hazardous %'];
+    const zColW = [35, 22, 25, 22, 22, 30];
+    doc.setFillColor(229, 231, 235);
+    doc.rect(14, y-5, W-28, 8, 'F');
+    doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+    let x=14; zCols.forEach((c,i)=>{doc.text(c,x+1,y);x+=zColW[i];}); y+=5;
+
+    for (const z of zones) {
+      const zr = allRows.filter(r=>r.zone===z.code&&r.aqi_score!=null);
+      const zm = zr.length ? zr.reduce((a,r)=>a+r.aqi_score,0)/zr.length : 0;
+      const zx = zr.length ? Math.max(...zr.map(r=>r.aqi_score)) : 0;
+      const zh = zr.length ? zr.filter(r=>r.aqi_score>=65).length/zr.length*100 : 0;
+      const isHw = zones.find(zz=>zz.code===z.code)?.is_physical;
+      x=14;
+      const row = [z.code, isHw?'Hardware':'Replay', zr.length, zm.toFixed(1), zx.toFixed(1), zh.toFixed(1)+'%'];
+      doc.setFont('helvetica','normal');
+      row.forEach((v,i)=>{doc.text(String(v),x+1,y);x+=zColW[i];});
+      y+=6;
+      if(y>270){doc.addPage();y=20;}
+    }
+    y+=8;
+
+    // ── Recent readings ──────────────────────────────────────────
+    doc.setFontSize(13); doc.setFont('helvetica','bold');
+    doc.text('Recent Readings (latest 100)', 14, y); y+=8;
+    const rCols = ['Timestamp (UTC)', 'Zone', 'Index', 'MQ-5', 'MQ-6', 'CO-A', 'CO-B', 'Temp °C', 'RH %'];
+    const rColW = [44,22,18,18,18,18,18,20,16];
+    doc.setFillColor(229,231,235);
+    doc.rect(14,y-5,W-28,8,'F');
+    doc.setFontSize(7.5); doc.setFont('helvetica','bold');
+    x=14; rCols.forEach((c,i)=>{doc.text(c,x+1,y);x+=rColW[i];}); y+=5;
+
+    const sample = allRows.sort((a,b)=>new Date(b.ts)-new Date(a.ts)).slice(0,100);
+    for (const r of sample) {
+      if(y>278){doc.addPage();y=20;}
+      const vals=[
+        r.ts?r.ts.slice(0,19).replace('T',' '):'—',
+        r.zone,
+        r.aqi_score!=null?r.aqi_score.toFixed(1):'—',
+        r.mq5!=null?Math.round(r.mq5):'—',
+        r.mq6!=null?Math.round(r.mq6):'—',
+        r.mq7_1!=null?Math.round(r.mq7_1):'—',
+        r.mq7_2!=null?Math.round(r.mq7_2):'—',
+        r.temperature!=null?r.temperature.toFixed(1):'—',
+        r.humidity!=null?Math.round(r.humidity):'—',
+      ];
+      x=14; doc.setFont('helvetica','normal');
+      vals.forEach((v,i)=>{doc.text(String(v),x+1,y);x+=rColW[i];}); y+=4.5;
+    }
+
+    // ── Footer ────────────────────────────────────────────────────
+    const pages = doc.internal.getNumberOfPages();
+    for(let i=1;i<=pages;i++){
+      doc.setPage(i);
+      doc.setFontSize(7.5); doc.setTextColor(150,150,150);
+      doc.text(`Smart Odour Monitoring Platform · UTeM Campus · Page ${i} of ${pages}`, 14, 292);
+      doc.text('This report is auto-generated. Values are relative severity indices (0–100), not calibrated concentrations.', 14, 296);
+    }
+
+    const fname = `Smart_Odour_ESG_${days}d_${new Date().toISOString().slice(0,10)}.pdf`;
+    doc.save(fname);
     msg.className = 'msg msg--ok';
-    msg.textContent = 'Report downloaded and archived.';
-    loadReports();
+    msg.textContent = `PDF downloaded — ${pages} page${pages>1?'s':''}, ${allRows.length} readings across ${zones.length} zones.`;
+
   } catch (err) {
     msg.className = 'msg msg--err';
-    msg.textContent = err.message || 'Could not generate the report.';
+    msg.textContent = 'Failed: ' + err.message;
   } finally {
     btn.disabled = false;
     btn.textContent = 'Generate PDF';

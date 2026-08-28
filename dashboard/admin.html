@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="portal.css?v=202608280012">
-<link rel="stylesheet" href="glass.css?v=202608280012">
+<link rel="stylesheet" href="portal.css?v=202608280254">
+<link rel="stylesheet" href="glass.css?v=202608280254">
 </head>
 <body>
 
@@ -89,7 +89,11 @@
       </div>
       <div class="panel">
         <div class="panel__head"><div><h3>All stations</h3>
-          <p id="stations-sub">Detecting hardware zone...</p></div></div>
+          <p id="stations-sub">Detecting hardware zone...</p>
+          <div class="field" style="margin-top:8px;max-width:320px">
+            <label for="hardware-zone-sel" style="font-size:12px;color:var(--muted)">Hardware node zone</label>
+            <select id="hardware-zone-sel" class="inline-select"></select>
+          </div></div></div>
         <table><thead><tr><th>Zone</th><th>Type</th><th>Odour index</th>
           <th>Status</th><th>MQ-6</th><th>Last reading</th></tr></thead>
           <tbody id="zones-body"></tbody></table>
@@ -216,8 +220,9 @@
   </main>
 </div>
 
-<script src="portal-ui.js?v=202608280012"></script>
+<script src="portal-ui.js?v=202608280254"></script>
 <script src="config.js"></script>
-<script src="admin.js?v=202608280012"></script>
+<script src="admin.js?v=202608280254"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </body>
 </html>

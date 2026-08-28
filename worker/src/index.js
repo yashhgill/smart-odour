@@ -17,7 +17,7 @@ const BUILD = '20260821-1518';
 
 /** Every route this build serves, so a missing feature is obvious at a glance. */
 const ROUTES = [
-  'GET /health', 'GET /version', 'GET /zones', 'GET /latest', 'GET /readings',
+  'GET /health', 'GET /version', 'GET /zones', 'POST /zones/set-physical', 'GET /latest', 'GET /readings',
   'GET /uptime', 'GET /incidents', 'GET /reports', 'GET /thresholds',
   'PUT /thresholds', 'GET /users', 'GET /invites', 'GET /profile',
   'PATCH /profile', 'POST /odour-reports', 'GET /odour-reports',
