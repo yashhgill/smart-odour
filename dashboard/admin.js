@@ -413,8 +413,23 @@ async function loadForecast() {
     return;
   }
 
-  const run = f.last_run;
-  const runAge = run?.started_at ? ago(run.started_at) : 'never';
+  // Normalise native Worker forecast shape to what the UI expects.
+  // Native returns: forecasts[], readings_used, fitted_at, r2, sigma
+  // UI expects:     points[], n_samples, generated_at, r2, last_run
+  if (f.forecasts && !f.points) {
+    f.points = f.forecasts.map(h => ({
+      horizon_min: h.horizon_minutes,
+      predicted:   h.predicted_index,
+      lower:       h.lower,
+      upper:       h.upper,
+      ts:          h.ts,
+    }));
+  }
+  if (f.readings_used != null && f.n_samples == null) f.n_samples = f.readings_used;
+  if (f.fitted_at && !f.generated_at) f.generated_at = f.fitted_at;
+
+  const run = f.last_run || null;
+  const runAge = f.generated_at ? ago(f.generated_at) : 'never';
 
   if (!f.available) {
     // Say why, rather than rendering an empty chart that looks broken.
@@ -448,10 +463,10 @@ async function loadForecast() {
            'next 3 hours',
            Math.max(...f.points.map((p) => p.predicted)) >= 65 ? 'hazardous'
              : Math.max(...f.points.map((p) => p.predicted)) >= 40 ? 'warning' : 'normal')}
-    ${card('Last fitted', runAge, `computed on the sidecar`, 'idle')}`;
+    ${card('Last fitted', runAge, f.model || 'native model', 'idle')}`;
 
   $('ai-sub').textContent =
-    `${modelLabel} fitted on ${(f.n_samples || 0).toLocaleString()} readings, generated ${ago(f.generated_at)}.`;
+    `${modelLabel} fitted on ${(f.n_samples || 0).toLocaleString()} readings · R² ${f.r2 ?? '—'} · σ ${f.sigma ?? '—'}`;
 
   drawForecast(f);
 
@@ -478,6 +493,7 @@ async function loadForecast() {
 }
 
 function renderRuns(run) {
+  // run is null for native Worker forecasts (no sidecar)
   $('ai-runs').innerHTML = run ? `
     <table><tbody>
       <tr><td>Last run</td><td class="mono">${when(run.started_at)}</td></tr>
