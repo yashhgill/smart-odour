@@ -75,9 +75,9 @@ test('sustained odour opens one event, escalates to strong, then clears', async 
   assert.equal(ev[0].backfilled, true);
 });
 
-test('live event sends noticeable, strong and cleared to the public channel once each', async () => {
+test('live event sends noticeable, strong and cleared to subscribers once each', async () => {
   await reset();
-  await db.exec(`insert into private.config values ('telegram_token','T'),('telegram_public_chat','@chan'),('telegram_admin_chat','123')`);
+  await db.exec(`insert into private.config values ('telegram_token','T'); delete from telegram_subscribers; insert into telegram_subscribers (chat_id) values (55)`);
   await send([row(15, 35), row(14, 36), row(13, 37)]);
   await send([row(12, 70), row(11, 72), row(10, 75)]);
   await send(Array.from({ length: 10 }, (_, k) => row(9 - k, 10)));
@@ -202,4 +202,74 @@ test('map positions are saved, shown publicly, kept on a rename and range checke
   const l = (await rpc(db, 'get_status', {})).locations.find(x => x.id === loc2);
   assert.equal(l.lat, 2.31108); assert.equal(l.lng, 102.3137);
   await assert.rejects(rpc(db, 'admin_save_location', { p_id: loc2, p_name: 'x', p_kind: 'residence', p_active: true, p_lat: 95, p_lng: 102 }, asAdmin), /out of range/);
+});
+
+const update = (chat, text, type = 'private') => ({ message: { chat: { id: chat, type }, text } });
+const bot = async (text, chat = 101) => rpc(db, 'telegram_update', { p_secret: 'hook', p_update: update(chat, text) });
+const setBot = () => db.exec(`select private.set_telegram('TKN'); update private.config set value = 'hook' where key = 'telegram_webhook_secret'; update private.config set value = 'CODE1' where key = 'telegram_admin_code'; delete from net.sent; delete from telegram_subscribers;`);
+
+test('bot refuses a wrong secret, ignores groups, and handles start, status and stop', async () => {
+  await reset(); await setBot();
+  await assert.rejects(rpc(db, 'telegram_update', { p_secret: 'nope', p_update: update(101, '/start') }), e => e.code === 'PT401');
+  assert.equal(await rpc(db, 'telegram_update', { p_secret: 'hook', p_update: update(-5, '/start', 'group') }), null);
+  const hi = await bot('/start');
+  assert.equal(hi.method, 'sendMessage'); assert.equal(hi.chat_id, 101); assert.match(hi.text, /Kolej Kediaman Lestari/);
+  assert.equal((await q1('select active from telegram_subscribers where chat_id = 101'))[0].active, true);
+  assert.match((await bot('/status')).text, /Lekiu/);
+  await bot('/stop');
+  assert.equal((await q1('select active from telegram_subscribers where chat_id = 101'))[0].active, false);
+  assert.match((await bot('hello')).text, /Commands/);
+});
+
+test('public alerts reach every active subscriber, device alerts only admins', async () => {
+  await reset(); await setBot();
+  await bot('/start', 201); await bot('/start', 202); await bot('/start', 203); await bot('/stop', 203);
+  assert.match((await bot('/admin WRONG', 202)).text, /not right/);
+  assert.match((await bot('/admin CODE1', 202)).text, /device alerts/);
+  await db.exec(`select private.queue_alert('strong', 'public', ${loc}, null, 'pub'); select private.queue_alert('offline', 'admin', ${loc}, null, 'adm'); select private.flush_alerts();`);
+  const sent = await q1(`select body->>'chat_id' c, body->>'text' t from net.sent order by 1, 2`);
+  assert.deepEqual(sent.map(x => x.c + x.t), ['201pub', '202adm', '202pub']);
+  assert.ok((await q1(`select 1 from net.sent where url like '%botTKN/sendMessage'`)).length);
+});
+
+test('a location in test mode sends no public alert but keeps device alerts, and is labelled', async () => {
+  await reset(); await setBot(); await bot('/start', 301); await bot('/admin CODE1', 301);
+  await assert.rejects(rpc(db, 'admin_set_test_mode', { p_location: loc, p_on: true }), e => e.code !== undefined);
+  await rpc(db, 'admin_set_test_mode', { p_location: loc, p_on: true }, asAdmin);
+  await db.exec(`select private.queue_alert('strong', 'public', ${loc}, null, 'pub'); select private.queue_alert('offline', 'admin', ${loc}, null, 'adm'); select private.flush_alerts();`);
+  assert.deepEqual((await q1(`select body->>'text' t from net.sent`)).map(x => x.t), ['adm']);
+  assert.equal((await q1(`select status from alerts where message = 'pub'`))[0].status, 'skipped');
+  assert.equal((await rpc(db, 'get_status')).locations.find(l => l.id === loc).test_mode, true);
+  assert.match((await bot('/status', 301)).text, /test sensor/);
+  await rpc(db, 'admin_set_test_mode', { p_location: loc, p_on: false }, asAdmin);
+});
+
+test('test readings can only be cleared in test mode', async () => {
+  await reset();
+  await send([row(1, 5)]);
+  await assert.rejects(rpc(db, 'admin_clear_test_data', { p_location: loc }, asAdmin), e => e.code === 'PT400');
+  assert.equal((await q1('select count(*)::int n from readings'))[0].n, 1);
+  await rpc(db, 'admin_set_test_mode', { p_location: loc, p_on: true }, asAdmin);
+  assert.equal(await rpc(db, 'admin_clear_test_data', { p_location: loc }, asAdmin), 1);
+  assert.equal((await q1('select count(*)::int n from readings'))[0].n, 0);
+  await rpc(db, 'admin_set_test_mode', { p_location: loc, p_on: false }, asAdmin);
+});
+
+test('a command from the admin reaches the device once, and needs an admin', async () => {
+  await reset();
+  await assert.rejects(rpc(db, 'admin_send_command', { p_device: 'NODE-1', p_command: 'relearn' }), e => e.code !== undefined);
+  await assert.rejects(rpc(db, 'admin_send_command', { p_device: 'NODE-1', p_command: 'format' }, asAdmin), e => e.code === 'PT400');
+  await rpc(db, 'admin_send_command', { p_device: 'NODE-1', p_command: 'relearn' }, asAdmin);
+  assert.equal((await send([row(2, 5)])).command, 'relearn');
+  const again = await send([row(1, 5)]);
+  assert.equal(again.command, undefined); assert.equal(again.accepted, 1);
+  await rpc(db, 'admin_send_command', { p_device: 'NODE-1', p_command: 'restart' }, asAdmin);
+  await assert.rejects(send([row(0, 5)], 'bad-key'), e => e.code === 'PT401');
+  assert.equal((await q1(`select pending_command c from devices where id = 'NODE-1'`))[0].c, 'restart');
+  await db.exec(`update devices set pending_command = null`);
+});
+
+test('anon cannot reach the private ingest or bot setup directly', async () => {
+  await assert.rejects(db.transaction(async tx => { await tx.exec('set local role anon'); await tx.query(`select private.set_telegram('x')`); }));
+  await assert.rejects(db.transaction(async tx => { await tx.exec('set local role anon'); await tx.query(`select private.ingest_core('a','b','[]'::jsonb,'{}'::jsonb)`); }));
 });

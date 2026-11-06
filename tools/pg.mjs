@@ -20,6 +20,7 @@ export async function makeDb() {
   `);
   await db.exec(sql('01_schema.sql'));
   await db.exec(sql('02_functions.sql'));
+  await db.exec(sql('04_bot_and_control.sql'));
   return db;
 }
 // Calls a function the way the REST API would: as a given role, with named args.

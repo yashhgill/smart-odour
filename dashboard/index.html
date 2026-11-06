@@ -4,7 +4,7 @@
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css"><link rel="stylesheet" href="style.css"></head><body>
 <div id="demo"></div>
 <header class="bar"><span id="mk"></span><span class="brand">Smart Odour Monitoring</span><span class="scope">Universiti Teknikal Malaysia Melaka</span>
-  <span class="right"><a id="tg" class="btn" hidden>Telegram alerts</a><button class="btn" id="theme"></button><a class="btn" href="admin.html">Admin</a></span></header>
+  <span class="right"><button class="btn" id="guide">Guide</button><a id="tg" class="btn" hidden>Telegram alerts</a><button class="btn" id="theme"></button><a class="btn" href="admin.html">Admin</a></span></header>
 <main class="wrap">
   <section class="top">
     <aside class="side">
@@ -21,6 +21,8 @@
       <div class="maplegend"><span><i class="k0"></i>Normal</span><span><i class="k1"></i>Noticeable</span><span><i class="k2"></i>Strong</span><span><i class="kx"></i>No data</span></div></section>
   </section>
 
+  <section class="card tgband" id="tgband" hidden><div><h2>Get odour alerts on Telegram</h2><div class="note">Tap the button, then press Start in Telegram. No account or login needed. Send /stop any time.</div></div><a class="btn primary" id="tg2" target="_blank" rel="noopener">Get alerts on Telegram</a></section>
+
   <section class="card"><div class="head"><h2>What the number means</h2><span class="sub">Odour Index, 0 to 100</span></div><div id="scale"></div></section>
 
   <section><div class="head outer"><h2>Every location</h2><span class="sub">Choose one to see its history</span></div><div class="locs" id="locs"></div></section>
@@ -33,6 +35,15 @@
     </div></section>
 
   <section class="card"><div class="head"><h2>Recent odour events</h2><span class="sub">A sustained smell, not a brief spike</span></div><div class="tscroll" id="events"></div></section>
+  <section class="story"><div class="head outer"><h2>Why this exists</h2></div>
+    <div class="storygrid">
+      <section class="card"><h3>The problem</h3><p>A chicken farm sits beside the UTeM campus at Durian Tunggal. Its smell drifts over the campus, mostly at night, and until now there was no record of when it happens, how often or where it is worst.</p></section>
+      <section class="card"><h3>What we built</h3><p>A small sensor station measures the air every minute and sends it here. It learns what clean air looks like at its location, then shows how far the air has moved from that as a simple number. If the smell lasts, everyone who signed up gets a Telegram alert.</p></section>
+      <section class="card"><h3>Where it covers</h3><p>The first sensor is assigned to Kolej Kediaman Lekiu (Satria). The system is ready for more sensors at Kolej Kediaman Lestari, the main cafeteria, FTMK and the farm side, each shown as its own point on the map.</p></section>
+      <section class="card"><h3>What the station uses</h3><p>Four MQ gas sensors, a DHT temperature and humidity sensor, a small fan that draws air across them and an LCD screen, all run by an ESP32.</p></section>
+      <section class="card"><h3>What comes next</h3><p>The MQ sensors detect gases, not dust. Adding a particle sensor such as the PMS5003 would let the same station and dashboard also track haze.</p></section>
+      <section class="card"><h3>Help it get more accurate</h3><p>When you smell something, or when you don't, use "Can you smell it now?" at the top. Your answers show what the numbers mean in real life, and they are used to set the Noticeable and Strong levels.</p></section>
+    </div></section>
   <p class="note" id="foot"></p>
 </main>
-<script src="vendor/leaflet/leaflet.js"></script><script src="config.js"></script><script src="common.js"></script><script src="public.js"></script></body></html>
+<script src="vendor/leaflet/leaflet.js"></script><script src="config.js"></script><script src="common.js"></script><script src="public.js"></script><script src="tour.js"></script></body></html>

@@ -76,14 +76,19 @@ arduino-cli upload --fqbn esp32:esp32:esp32 -p 192.168.1.50 --upload-field passw
 
 ## 5. Telegram alerts
 
-Create a bot with @BotFather and a public channel, add the bot as admin, then run this in the SQL editor:
+Students need no login or channel. They open the bot and press **Start**.
 
-```sql
-insert into private.config (key, value) values ('telegram_token', 'TOKEN'), ('telegram_public_chat', '@yourchannel'), ('telegram_admin_chat', 'ADMIN_CHAT_ID')
-on conflict (key) do update set value = excluded.value;
-```
+1. In @BotFather copy the bot's token. Revoke it first if it has ever been shared.
+2. In the Supabase SQL editor run `select private.set_telegram('TOKEN');`. It answers with an admin code.
+3. Send `/start` to the bot, then `/admin CODE` to also get device alerts.
+4. Put the bot's link in `dashboard/config.js` as `TELEGRAM_LINK`.
 
-Put the channel link in `dashboard/config.js` as `TELEGRAM_LINK`.
+## Test mode and moving a sensor
+
+While a sensor is not at its location yet, turn on **Test mode** for that location on the admin page. The site labels it, and it sends no public alerts. Once the sensor is installed:
+
+1. Press **Clear test readings**, then turn test mode off.
+2. Press **Re-learn** on the device, so it learns the new location's clean air over 24 hours.
 
 ## Local preview with simulated data
 

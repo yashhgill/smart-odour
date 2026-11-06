@@ -2,12 +2,13 @@ let selected = null, locs = [], settings = {}, map = null;
 const pins = {}, side = {};
 $('#mk').innerHTML = LOGO; themeButton($('#theme'));
 if (C.DEMO || C.BANNER) $('#demo').innerHTML = `<div class="demo">${esc(C.BANNER || 'Demonstration with simulated data')}</div>`;
-if (C.TELEGRAM_LINK) { const t = $('#tg'); t.href = C.TELEGRAM_LINK; t.hidden = false; }
+if (C.TELEGRAM_LINK) { const t = $('#tg'); t.href = C.TELEGRAM_LINK; t.hidden = false; $('#tg2').href = C.TELEGRAM_LINK; $('#tgband').hidden = false; }
 
 // During learning the number is shown but carries no level, because it isn't meaningful yet.
 const shownIndex = l => l.online && l.recorded_at ? l.odour_index : null;
-const levelOf = l => l.online && !l.learning ? l.level : null;
-const wordOf = l => !l.has_device && !l.recorded_at ? 'No sensor' : !l.online ? 'Offline' : l.learning ? 'Learning' : LEVELS[l.level];
+// A sensor in test mode isn't at its location yet, so it never sets a level or the headline.
+const levelOf = l => l.online && !l.learning && !l.test_mode ? l.level : null;
+const wordOf = l => !l.has_device && !l.recorded_at ? 'No sensor' : !l.online ? 'Offline' : l.test_mode ? 'Test' : l.learning ? 'Learning' : LEVELS[l.level];
 
 // A ring of dots: how much of the 0 to 100 scale is lit.
 function dotRing(index, lvl) {
@@ -38,7 +39,7 @@ function scale(s) {
 function pinIcon(l) {
   const lvl = levelOf(l), raw = shownIndex(l), v = raw == null ? null : Math.round(raw), size = lvl == null ? 0 : 44 + v * 1.5;
   return L.divIcon({ className: '', iconSize: [0, 0], html:
-    `<div class="pin p${lvl ?? 'x'} ${side[l.id] || ''} ${selected === l.id ? 'on' : ''}"><i class="halo" style="width:${size}px;height:${size}px"></i><b>${v ?? '–'}</b><span>${esc(l.name)}</span></div>` });
+    `<div class="pin p${lvl ?? 'x'} ${side[l.id] || ''} ${selected === l.id ? 'on' : ''}"><i class="halo" style="width:${size}px;height:${size}px"></i><b>${v ?? '–'}</b><span>${esc(l.name)}${l.test_mode ? ' (test)' : ''}</span></div>` });
 }
 const FARM = [2.3190, 102.3118]; // The poultry sheds nearest campus, from OpenStreetMap. A landmark, not a sensor.
 function drawMap() {
@@ -86,9 +87,12 @@ async function loadStatus() {
   const live = locs.filter(l => levelOf(l) != null);
   const worst = Math.max(0, ...live.map(l => l.level));
   const bad = live.filter(l => l.level === worst && worst > 0).map(l => l.name);
-  const learning = locs.filter(l => l.online && l.learning);
-  $('#headline').textContent = !locs.some(l => l.online) ? 'NO SENSORS ONLINE' : !live.length && learning.length ? 'LEARNING CLEAN AIR' : worst === 2 ? 'CLOSE YOUR WINDOWS' : worst === 1 ? 'YOU MAY SMELL IT' : 'AIR IS NORMAL';
-  $('#where').textContent = !live.length && learning.length ? `${learning.map(l => l.name).join(', ')}: levels start after 24 hours of learning.` : !live.length ? 'No location is reporting right now.' : worst === 0 ? `Normal at all ${live.length} reporting locations.` : `${LEVELS[worst]} odour at ${bad.join(', ')}.`;
+  const learning = locs.filter(l => l.online && l.learning && !l.test_mode);
+  const testing = locs.filter(l => l.test_mode);
+  if (!C.DEMO && !C.BANNER) $('#demo').innerHTML = testing.length ? `<div class="demo">${esc(testing.map(l => l.name).join(', '))}: test sensor, not on campus yet. These readings are not from this location.</div>` : '';
+  const realOnline = locs.some(l => l.online && !l.test_mode), testOnline = testing.some(l => l.online);
+  $('#headline').textContent = !realOnline ? (testOnline ? 'SENSOR IN TEST' : 'NO SENSORS ONLINE') : !live.length && learning.length ? 'LEARNING CLEAN AIR' : worst === 2 ? 'CLOSE YOUR WINDOWS' : worst === 1 ? 'YOU MAY SMELL IT' : 'AIR IS NORMAL';
+  $('#where').textContent = !realOnline && testOnline ? 'No sensor is on campus yet.' : !live.length && learning.length ? `${learning.map(l => l.name).join(', ')}: levels start after 24 hours of learning.` : !live.length ? 'No location is reporting right now.' : worst === 0 ? `Normal at all ${live.length} reporting locations.` : `${LEVELS[worst]} odour at ${bad.join(', ')}.`;
   $('#updated').textContent = 'UPDATED ' + fmtTime(st.server_time);
   const chip = $('#dchip'); chip.textContent = live.length ? LEVELS[worst].toUpperCase() : 'NO DATA'; chip.className = 'dchip c' + (live.length ? worst : 'x');
   scale(settings);

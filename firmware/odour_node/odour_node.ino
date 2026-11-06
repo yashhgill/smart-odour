@@ -32,7 +32,7 @@
 #include "secrets.h"
 #include "odour_index.h"
 
-#define FIRMWARE "2.2.0"
+#define FIRMWARE "2.3.0"
 
 // ---- hardware
 const int MQ_PINS[odour::SENSORS] = {32, 33, 34, 35};
@@ -256,11 +256,22 @@ String buildBody(int n) {
 }
 
 float jsonField(const String& s, const char* name, float fallback) {
-  int at = s.indexOf(String("\"") + name + "\":");
+  int at = s.indexOf(String("\"") + name + "\"");
   if (at < 0) return fallback;
-  return s.substring(at + strlen(name) + 3).toFloat();
+  int colon = s.indexOf(':', at);      // the database writes a space after the colon
+  return colon < 0 ? fallback : s.substring(colon + 1).toFloat();
 }
 
+// Forget the clean-air reference, for when the node has moved to its real location.
+void relearn() {
+  for (int i = 0; i < odour::SENSORS; i++) baseline[i] = 0;
+  learnedSeconds = 0;
+  store.remove("base");
+  store.putULong("learned", 0);
+  Serial.println("RELEARN started");
+}
+
+bool restartAfterSend = false;
 // A batch leaves the queue only after the server confirms it. If the reply is
 // lost and the batch is sent again, the server counts those rows as duplicates.
 void sendBatch() {
@@ -282,12 +293,18 @@ void sendBatch() {
     strong = jsonField(reply, "strong", strong);
     failWait = SEND_MS;
     Serial.printf("sent %d: %s\n", n, reply.c_str());
+    // The website queues a command, and it arrives in the reply to the next upload.
+    if (reply.indexOf("\"command\"") >= 0) {
+      if (reply.indexOf("\"relearn\"") >= 0) relearn();
+      else if (reply.indexOf("\"restart\"") >= 0) restartAfterSend = true;
+    }
   } else {
     // Back off up to 5 minutes so a cloud outage is not hammered.
     failWait = min(failWait * 2, 300000UL);
     Serial.printf("send failed (%d), retry in %lus\n", code, failWait / 1000);
   }
   http.end();
+  if (restartAfterSend) { Serial.println("RESTART requested"); delay(200); ESP.restart(); }
 }
 
 void setup() {
