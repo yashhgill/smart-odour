@@ -13,3 +13,5 @@ tools/out/
 recordings/
 # Azira's draft stays out of this public repo: an online copy could match her own Turnitin submission
 report/
+.wrangler/
+firmware/odour_node/build/
