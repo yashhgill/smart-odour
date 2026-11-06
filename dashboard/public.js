@@ -40,6 +40,7 @@ function pinIcon(l) {
   return L.divIcon({ className: '', iconSize: [0, 0], html:
     `<div class="pin p${lvl ?? 'x'} ${selected === l.id ? 'on' : ''}"><i class="halo" style="width:${size}px;height:${size}px"></i><b>${v ?? '–'}</b><span>${esc(l.name)}</span></div>` });
 }
+const FARM = [2.3195, 102.3105]; // Middle of the poultry sheds, from OpenStreetMap. A landmark, not a sensor.
 function drawMap() {
   if (!window.L || !$('#map')) return;
   const placed = locs.filter(l => l.lat != null && l.lng != null);
@@ -47,9 +48,10 @@ function drawMap() {
     map = L.map('map', { scrollWheelZoom: false, attributionControl: true, zoomSnap: .25 });
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Imagery &copy; Esri and contributors' }).addTo(map);
     map.setView([2.3125, 102.32], 15);
+    L.marker(FARM, { interactive: false, keyboard: false, zIndexOffset: -500, icon: L.divIcon({ className: '', iconSize: [0, 0], html: '<div class="farmtag">Chicken farm</div>' }) }).addTo(map);
     // Keep every pin in view as the card changes size, until the visitor moves the map themselves.
     let touched = false;
-    const fit = () => { map.invalidateSize(); if (!touched && placed.length) map.fitBounds(placed.map(l => [l.lat, l.lng]), { padding: [80, 80], animate: false }); };
+    const fit = () => { map.invalidateSize(); if (!touched && placed.length) map.fitBounds([FARM, ...placed.map(l => [l.lat, l.lng])], { padding: [80, 80], animate: false }); };
     ['mousedown', 'touchstart'].forEach(ev => $('#map').addEventListener(ev, () => { touched = true; }, { passive: true }));
     new ResizeObserver(fit).observe($('#map'));
     fit();

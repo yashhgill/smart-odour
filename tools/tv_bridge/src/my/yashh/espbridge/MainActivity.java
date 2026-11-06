@@ -10,6 +10,7 @@ import android.view.WindowManager;
 import android.widget.TextView;
 import java.io.*;
 import java.net.*;
+import java.nio.ByteBuffer;
 
 /**
  * Lets a computer reach an ESP32 plugged into this TV's USB port, for boards the computer can't
@@ -23,6 +24,8 @@ public class MainActivity extends Activity {
     TextView view;
     final StringBuilder lines = new StringBuilder();
     UsbDeviceConnection usb; UsbEndpoint in, out;
+    boolean rts;
+    volatile OutputStream client;
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
@@ -58,6 +61,7 @@ public class MainActivity extends Activity {
             ctl(0x00, 1);       // enable the UART
             ctl(0x03, 0x0800);  // 8 data bits, no parity, 1 stop bit
             baud(115200);
+            Thread r = new Thread(this::reader); r.setDaemon(true); r.start();
             ServerSocket srv = new ServerSocket(PORT);
             log("Ready on port " + PORT);
             while (true) {
@@ -74,23 +78,25 @@ public class MainActivity extends Activity {
         byte[] d = { (byte) b, (byte) (b >> 8), (byte) (b >> 16), (byte) (b >> 24) };
         usb.controlTransfer(OUT, 0x1E, 0, 0, d, 4, 1000);
     }
+    /** Board to computer, doubling any 0xFF. One read stays queued, because timed reads can drop bytes. */
+    void reader() {
+        ByteBuffer b = ByteBuffer.allocate(512); byte[] e = new byte[1024];
+        UsbRequest r = new UsbRequest();
+        if (!r.initialize(usb, in)) { log("Could not read from USB."); return; }
+        while (true) {
+            b.clear();
+            if (!r.queue(b) || usb.requestWait() == null) { log("USB read stopped."); return; }
+            int n = b.position(), k = 0;
+            for (int i = 0; i < n; i++) { byte v = b.get(i); e[k++] = v; if ((v & 255) == IAC) e[k++] = v; }
+            OutputStream os = client;
+            if (os == null || k == 0) continue;
+            try { synchronized (os) { os.write(e, 0, k); os.flush(); } } catch (IOException x) { client = null; }
+        }
+    }
     void serve(Socket s) throws IOException {
         final OutputStream os = new BufferedOutputStream(s.getOutputStream(), 8192);
         final InputStream is = new BufferedInputStream(s.getInputStream(), 8192);
-        final boolean[] open = { true };
-        Thread up = new Thread(() -> {            // board to computer, doubling any 0xFF
-            byte[] b = new byte[512]; byte[] e = new byte[1024];
-            try {
-                while (open[0]) {
-                    int n = usb.bulkTransfer(in, b, b.length, 20);
-                    if (n <= 0) continue;
-                    int k = 0;
-                    for (int i = 0; i < n; i++) { e[k++] = b[i]; if ((b[i] & 255) == IAC) e[k++] = b[i]; }
-                    synchronized (os) { os.write(e, 0, k); os.flush(); }
-                }
-            } catch (IOException x) { open[0] = false; }
-        });
-        up.setDaemon(true); up.start();
+        client = os;
         byte[] w = new byte[4096]; byte[] sb = new byte[64]; int sbn = 0;
         boolean[][] said = new boolean[2][256];
         int st = 0, verb = 0; // 0 data, 1 after IAC, 2 option, 3 inside SB, 4 IAC inside SB
@@ -125,7 +131,7 @@ public class MainActivity extends Activity {
                 } while (c >= 0);
                 flush(w, n);
             }
-        } finally { open[0] = false; }
+        } finally { client = null; }
     }
     void flush(byte[] w, int n) { int off = 0; while (off < n) {
         int k = usb.bulkTransfer(out, w, off, Math.min(n - off, 64), 1000); if (k <= 0) return; off += k; } }
@@ -141,9 +147,13 @@ public class MainActivity extends Activity {
             if (b > 0) baud(b);
         } else if (cmd == 5 && n >= 3) {
             int v = sb[2] & 255;
-            if (v == 8) ctl(0x07, 0x0101); else if (v == 9) ctl(0x07, 0x0100);       // DTR on, off
-            else if (v == 11) ctl(0x07, 0x0202); else if (v == 12) ctl(0x07, 0x0200); // RTS on, off
-        } else if (cmd == 12) ctl(0x12, 0x000f);                                      // clear buffers
+            // esptool sets DTR then RTS. With both on the board's reset circuit lets go of reset and GPIO0,
+            // and over a network that gap is long enough to boot normally, so move from RTS to DTR in one step.
+            if (v == 8) { if (rts) { ctl(0x07, 0x0301); rts = false; } else ctl(0x07, 0x0101); }
+            else if (v == 9) ctl(0x07, 0x0100);                                       // DTR off
+            else if (v == 11) { ctl(0x07, 0x0202); rts = true; }                      // RTS on
+            else if (v == 12) { ctl(0x07, 0x0200); rts = false; }                     // RTS off
+        } // A purge (cmd 12) is only echoed: clearing the chip's buffers can lose bytes still on their way.
         synchronized (os) {
             os.write(IAC); os.write(SB); os.write(COM); os.write(cmd + 100);
             for (int i = 2; i < n; i++) { os.write(sb[i]); if ((sb[i] & 255) == IAC) os.write(IAC); }

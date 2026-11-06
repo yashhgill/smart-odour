@@ -197,9 +197,9 @@ test('moving a device to a new location closes its open event and keeps its key'
 });
 
 test('map positions are saved, shown publicly, kept on a rename and range checked', async () => {
-  await rpc(db, 'admin_save_location', { p_id: loc2, p_name: 'Kolej Kediaman Lekiu (Satria)', p_kind: 'residence', p_active: true, p_lat: 2.3129, p_lng: 102.3197 }, asAdmin);
+  await rpc(db, 'admin_save_location', { p_id: loc2, p_name: 'Kolej Kediaman Lekiu (Satria)', p_kind: 'residence', p_active: true, p_lat: 2.31108, p_lng: 102.3137 }, asAdmin);
   await rpc(db, 'admin_save_location', { p_id: loc2, p_name: 'Kolej Kediaman Lekiu (Satria)', p_kind: 'residence', p_active: true }, asAdmin);
   const l = (await rpc(db, 'get_status', {})).locations.find(x => x.id === loc2);
-  assert.equal(l.lat, 2.3129); assert.equal(l.lng, 102.3197);
+  assert.equal(l.lat, 2.31108); assert.equal(l.lng, 102.3137);
   await assert.rejects(rpc(db, 'admin_save_location', { p_id: loc2, p_name: 'x', p_kind: 'residence', p_active: true, p_lat: 95, p_lng: 102 }, asAdmin), /out of range/);
 });

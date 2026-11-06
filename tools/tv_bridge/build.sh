@@ -10,6 +10,6 @@ javac -nowarn -source 8 -target 8 -cp "$JAR" -d out/classes src/my/yashh/espbrid
 "$BT/d8" --release --min-api 23 --lib "$JAR" --output out $(find out/classes -name '*.class')
 (cd out && zip -q base.apk classes.dex)
 "$BT/zipalign" -f 4 out/base.apk out/aligned.apk
-[ -f out/key.jks ] || keytool -genkeypair -keystore out/key.jks -storepass android -keypass android -alias k -keyalg RSA -keysize 2048 -validity 3650 -dname "CN=ESP Bridge" >/dev/null 2>&1
-"$BT/apksigner" sign --ks out/key.jks --ks-pass pass:android --out esp-bridge.apk out/aligned.apk
+[ -f key.jks ] || keytool -genkeypair -keystore key.jks -storepass android -keypass android -alias k -keyalg RSA -keysize 2048 -validity 3650 -dname "CN=ESP Bridge" >/dev/null 2>&1
+"$BT/apksigner" sign --ks key.jks --ks-pass pass:android --out esp-bridge.apk out/aligned.apk
 ls -la esp-bridge.apk

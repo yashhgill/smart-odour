@@ -131,7 +131,7 @@ def main():
             port = b.device; print(f'Found {USB_CHIPS.get(b.vid, "USB serial")} board at {port}')
         else:
             print('Waiting for the board. Plug in the USB cable...', end='\r'); time.sleep(1)
-    s = serial.Serial(); s.port, s.baudrate, s.timeout = port, 115200, 2
+    s = serial.serial_for_url(port, do_not_open=True); s.baudrate, s.timeout = 115200, 2  # also takes rfc2217://host:port
     s.dtr = s.rts = False   # opening the port must not reset the board
     s.open()
     try:

@@ -21,7 +21,7 @@ await db.query('insert into app_admins values ($1)', [ADMIN]);
 // A seeded random so screenshots are repeatable.
 let seed = 42; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 const DAYS = 14, STEP = 60000, now = Math.floor(Date.now() / STEP) * STEP;
-const sites = [['North Perimeter (Farm Side)', 'farm', 1.6, 2.3168, 102.3210], ['Kolej Kediaman Lekiu (Satria)', 'residence', 1.05, 2.3129, 102.3197], ['Kolej Kediaman Lestari', 'residence', 1.0, 2.3098, 102.3232], ['FTMK Faculty Building', 'other', 0.5, 2.3080, 102.3192], ['Main Cafeteria / Waste Bay', 'other', 0.6, 2.3141, 102.3172]];
+const sites = [['North Perimeter (Farm Side)', 'farm', 1.6, 2.3170, 102.3157], ['Kolej Kediaman Lekiu (Satria)', 'residence', 1.05, 2.31108, 102.3137], ['Kolej Kediaman Lestari', 'residence', 1.0, 2.31514, 102.31612], ['FTMK Faculty Building', 'other', 0.5, 2.30805, 102.31887], ['Main Cafeteria / Waste Bay', 'other', 0.6, 2.31365, 102.31892]];
 if (LIVE) {
   for (const [name, kind, , lat, lng] of sites) {
     const id = await rpc(db, 'admin_save_location', { p_id: null, p_name: name, p_kind: kind, p_active: true, p_lat: lat, p_lng: lng }, asAdmin);
