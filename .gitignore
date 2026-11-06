@@ -1,13 +1,15 @@
-firmware/secrets.h
-backend/.env
-backend/__pycache__/
-**/__pycache__/
-worker/node_modules/
-worker/.wrangler/
-*.pyc
 .DS_Store
-
-DEVICE_KEY.txt
-
-# single-file sketch holds credentials inline
-firmware/odour_node_all_in_one.ino
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+# device credentials never go in git
+firmware/odour_node/secrets.h
+.env
+# local test output
+tools/out/
+.taste-skill/
+# readings saved over USB
+recordings/
+# Azira's draft stays out of this public repo: an online copy could match her own Turnitin submission
+report/

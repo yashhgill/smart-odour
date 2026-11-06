@@ -1,0 +1,49 @@
+{
+  "outer_mm": {
+    "width": 174,
+    "height": 147,
+    "depth": 78
+  },
+  "limit_mm": 180,
+  "within_limit": true,
+  "clearances_mm": {
+    "mq_can_to_lid": 25.8,
+    "lcd_to_esp_stack": 2.7,
+    "mq_row_to_fan": 5.2
+  },
+  "watertight": {
+    "body": true,
+    "lid": true,
+    "rack": true,
+    "roof": true
+  },
+  "grams_petg": {
+    "body": 220,
+    "lid": 58,
+    "rack": 19,
+    "roof": 105
+  },
+  "parts_bbox_mm": {
+    "body": [
+      174,
+      138,
+      67.6
+    ],
+    "lid": [
+      142,
+      138,
+      10.9
+    ],
+    "rack": [
+      119.8,
+      48,
+      7.4
+    ],
+    "roof": [
+      162.8,
+      19,
+      78
+    ]
+  },
+  "problems": []
+}

@@ -1,127 +1,38 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Smart Odour Monitoring — UTeM Campus</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="portal.css?v=202608280324">
-<link rel="stylesheet" href="glass.css?v=202608280324">
-<style>
-  /* Public view is a single scrolling page rather than a sidebar app: there is
-     no navigation to speak of, and anyone arriving here wants one number. */
-  .public { max-width: 1240px; margin: 0 auto; padding: 22px 24px 48px; }
-  .masthead {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 16px; flex-wrap: wrap; margin-bottom: 20px;
-  }
-  .masthead__id { display: flex; align-items: center; gap: 13px; }
-  .masthead h1 { font-size: 20px; font-weight: 700; line-height: 1.15; }
-  .masthead p { margin: 2px 0 0; font-size: 12.5px; color: var(--muted); }
-  .masthead__actions { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
-  .hero {
-    background: var(--card); border: 1px solid var(--line); border-radius: var(--r);
-    box-shadow: var(--shadow-1); padding: 24px 26px; margin-bottom: 18px;
-    display: flex; align-items: center; gap: 26px; flex-wrap: wrap;
-  }
-  .hero__num {
-    font-family: var(--mono); font-size: 58px; font-weight: 500;
-    line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums;
-  }
-  .hero__meta { flex: 1; min-width: 240px; }
-  .hero__meta h2 { font-size: 17px; font-weight: 650; }
-  .hero__meta p { margin: 5px 0 0; font-size: 13px; color: var(--muted); max-width: 62ch; }
-  .clock {
-    font-family: var(--mono); font-size: 13px; color: var(--muted);
-    font-variant-numeric: tabular-nums;
-  }
-</style>
-</head>
-<body>
-
-<div class="public">
-  <header class="masthead">
-    <div class="masthead__id">
-      <div class="side__mark"></div>
-      <div>
-        <h1>Smart Odour Monitoring</h1>
-        <p>Universiti Teknikal Malaysia Melaka &middot; Campus Air Quality Network</p>
-      </div>
-    </div>
-    <div class="masthead__actions who">
-      <span class="pill pill--grey" id="feed">Connecting</span>
-      <time class="clock" id="clock">--:--:--</time>
-      <a class="btn btn--ghost" href="user.html">User portal</a>
-      <a class="btn" href="admin.html">Admin sign in</a>
-    </div>
-  </header>
-
-  <section class="hero">
-    <div>
-      <div class="card__label">Campus air right now</div>
-      <div class="hero__num" id="hero-num">—</div>
-      <div class="pill pill--grey" id="hero-band" style="margin-top:8px">awaiting data</div>
-    </div>
-    <div class="hero__meta">
-      <h2 id="hero-zone">&mdash;</h2>
-      <p id="hero-note">
-        The highest odour index currently reported across the campus network.
-        The index is a relative 0&ndash;100 severity score, not a calibrated
-        concentration &mdash; see the note at the foot of this page.
-      </p>
-    </div>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><script>try{var t=localStorage.getItem('odour_theme');if(location.hash==='#dark'||location.hash==='#light')t=location.hash.slice(1);if(t)document.documentElement.dataset.theme=t}catch(e){}</script><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Smart Odour Monitor</title><meta name="description" content="Live odour levels around the UTeM campus.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Doto:wght@800&display=swap">
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css"><link rel="stylesheet" href="style.css"></head><body>
+<div id="demo"></div>
+<header class="bar"><span id="mk"></span><span class="brand">Smart Odour Monitoring</span><span class="scope">Universiti Teknikal Malaysia Melaka</span>
+  <span class="right"><a id="tg" class="btn" hidden>Telegram alerts</a><button class="btn" id="theme"></button><a class="btn" href="admin.html">Admin</a></span></header>
+<main class="wrap">
+  <section class="top">
+    <aside class="side">
+      <div class="display" role="status"><div class="screen" id="headline">CHECKING THE AIR</div>
+        <div class="dfoot"><span id="updated"></span><span class="dchip" id="dchip"></span></div></div>
+      <p class="dwhere" id="where"></p>
+      <section class="card"><h2>Can you smell it now?</h2>
+        <div class="note">Your answer teaches the system what a real smell looks like.</div>
+        <select id="rloc" aria-label="Your location" style="margin-top:10px;width:100%"></select>
+        <div class="say"><button class="btn" data-l="0">No smell<small>Air is fine</small></button><button class="btn" data-l="1">I smell it<small>Noticeable</small></button><button class="btn" data-l="2">Very strong<small>Hard to ignore</small></button></div>
+        <div class="note" id="saymsg" role="status"></div></section>
+    </aside>
+    <section class="card mapcard"><div id="map" role="application" aria-label="Campus map of sensor locations"></div>
+      <div class="maplegend"><span><i class="k0"></i>Normal</span><span><i class="k1"></i>Noticeable</span><span><i class="k2"></i>Strong</span><span><i class="kx"></i>No data</span></div></section>
   </section>
 
-  <div class="cards" id="stations"></div>
+  <section class="card"><div class="head"><h2>What the number means</h2><span class="sub">Odour Index, 0 to 100</span></div><div id="scale"></div></section>
 
-  <section class="panel">
-    <div class="panel__head">
-      <div><h3>Station map</h3>
-        <p>Halo size scales with the reading. Solid markers are physical hardware;
-           outlined markers replay recorded campus data.</p></div>
-    </div>
-    <div id="leaflet-map"></div>
-    <div class="map-legend">
-      <span><i style="background:#0e9f6e"></i> Normal</span>
-      <span><i style="background:#e8940c"></i> Warning</span>
-      <span><i style="background:#dc3545"></i> Hazardous</span>
-      <span><i style="background:#94a3b8"></i> Offline</span>
-    </div>
-  </section>
+  <section><div class="head outer"><h2>Every location</h2><span class="sub">Choose one to see its history</span></div><div class="locs" id="locs"></div></section>
 
-  <section class="panel">
-    <div class="panel__head">
-      <div><h3>Public advisories</h3>
-        <p>Open incidents affecting the campus.</p></div>
-    </div>
-    <div id="advisories"><p class="empty">No active advisories.</p></div>
-  </section>
+  <section><div class="head outer"><h2 id="whenscope">History</h2><select id="range" aria-label="Period"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option></select></div>
+    <div class="grid3">
+      <section class="card"><h2>When it happens</h2><div class="note">Minutes of odour for each hour of the day</div><div id="clock"></div><div class="note" id="peak"></div></section>
+      <section class="card"><h2>Which place is worst</h2><div class="note">Odour events at each location</div><div id="rank"></div></section>
+      <section class="card"><h2>How often</h2><div class="note">In the chosen period</div><div class="kpis" id="kpis"></div></section>
+    </div></section>
 
-  <section class="panel">
-    <div class="panel__head">
-      <div><h3>About these readings</h3></div>
-    </div>
-    <p class="report__blurb">
-      Readings come from ESP32 nodes carrying MQ-5, MQ-6 and two MQ-7 gas sensors
-      with a DHT11 for temperature and humidity. Each node samples every eight
-      seconds and signs every transmission, so a reading cannot be forged by a
-      third party.
-    </p>
-    <p class="report__blurb">
-      <b>The odour index is a relative severity score from 0 to 100, not a
-      concentration in parts per million.</b> MQ-series sensors output a raw
-      analogue value that varies with temperature, humidity and sensor age, and
-      they are not calibrated against a reference gas. Absolute concentrations
-      would require per-sensor calibration that has not been performed.
-    </p>
-  </section>
-</div>
-
-<script src="portal-ui.js?v=202608280324"></script>
-<script src="config.js"></script>
-<script src="public.js?v=202608280324"></script>
-</body>
-</html>
-
+  <section class="card"><div class="head"><h2>Recent odour events</h2><span class="sub">A sustained smell, not a brief spike</span></div><div class="tscroll" id="events"></div></section>
+  <p class="note" id="foot"></p>
+</main>
+<script src="vendor/leaflet/leaflet.js"></script><script src="config.js"></script><script src="common.js"></script><script src="public.js"></script></body></html>

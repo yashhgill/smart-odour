@@ -1,124 +1,156 @@
-/* ==========================================================================
-   Public view. No authentication, no writes — read-only campus air quality.
+let selected = null, locs = [], settings = {}, map = null;
+const pins = {};
+$('#mk').innerHTML = LOGO; themeButton($('#theme'));
+if (C.DEMO || C.BANNER) $('#demo').innerHTML = `<div class="demo">${esc(C.BANNER || 'Demonstration with simulated data')}</div>`;
+if (C.TELEGRAM_LINK) { const t = $('#tg'); t.href = C.TELEGRAM_LINK; t.hidden = false; }
 
-   Air quality on a shared campus is arguably something residents should be
-   able to see without an account, and it makes the demo far easier: no login
-   on a projector.
-   ========================================================================== */
+// During learning the number is shown but carries no level, because it isn't meaningful yet.
+const shownIndex = l => l.online && l.recorded_at ? l.odour_index : null;
+const levelOf = l => l.online && !l.learning ? l.level : null;
+const wordOf = l => !l.has_device && !l.recorded_at ? 'No sensor' : !l.online ? 'Offline' : l.learning ? 'Learning' : LEVELS[l.level];
 
-const CFG = window.CONFIG;
-const $ = (id) => document.getElementById(id);
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
-  (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-
-const fmt = (v, d = 1) => (v == null ? '—' : Number(v).toFixed(d));
-const when = (iso) => iso ? new Date(iso).toLocaleString('en-GB',
-  { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
-
-function ago(iso) {
-  if (!iso) return 'never';
-  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return `${s}s ago`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
+// A ring of dots: how much of the 0 to 100 scale is lit.
+function dotRing(index, lvl) {
+  const N = 24, c = 50, r = 42, lit = index == null ? 0 : Math.round(index / 100 * N);
+  let s = `<svg class="ring" viewBox="0 0 100 100" aria-hidden="true">`;
+  for (let k = 0; k < N; k++) {
+    const a = k / N * 2 * Math.PI - Math.PI / 2;
+    s += `<circle cx="${(c + r * Math.cos(a)).toFixed(2)}" cy="${(c + r * Math.sin(a)).toFixed(2)}" r="3.1" fill="${k < lit ? `var(--l${lvl})` : 'var(--dot-off)'}"/>`;
+  }
+  return s + `<text x="50" y="58" text-anchor="middle" font-size="25" font-weight="600" fill="currentColor">${index == null ? '–' : Math.round(index)}</text></svg>`;
 }
-
-const pillFor = (s) => s === 'hazardous' ? 'pill--red'
-  : s === 'warning' ? 'pill--amber'
-  : s === 'offline' ? 'pill--grey' : 'pill--green';
-
-async function api(path) {
-  const res = await fetch(CFG.API_BASE + path);
-  if (!res.ok) throw new Error(res.status);
-  return res.json();
+// The last 24 hours as a coloured strip.
+function ribbon(points, s) {
+  const W = 480, now = Date.now(), span = 864e5, step = 360e3;
+  const color = i => i >= s.strong ? 'var(--l2)' : i >= s.noticeable ? 'var(--l1)' : 'var(--l0-soft)';
+  let out = `<svg class="ribbon" viewBox="0 0 ${W} 22" preserveAspectRatio="none" shape-rendering="crispEdges" role="img" aria-label="Odour level over the last 24 hours"><rect width="${W}" height="22" fill="var(--dot-off)"/>`;
+  points.forEach(p => {
+    const x = (new Date(p.t) - (now - span)) / span * W;
+    if (x < -2) return;
+    out += `<rect x="${x.toFixed(1)}" width="${(step / span * W + 1.2).toFixed(2)}" height="22" fill="${color(Number(p.max))}"/>`;
+  });
+  return out + '</svg>';
 }
-
-function setFeed(cls, text) {
-  const p = $('feed');
-  p.className = 'pill ' + cls;
-  p.textContent = text;
+function scale(s) {
+  const a = s.noticeable, b = s.strong;
+  $('#scale').innerHTML = `<div class="scale"><div class="seg s0" style="flex:${a}"><b>Normal</b><span>Below ${a}. No action needed.</span></div><div class="seg s1" style="flex:${b - a}"><b>Noticeable</b><span>${a} to ${b - 1}. You may smell it.</span></div><div class="seg s2" style="flex:${Math.max(100 - b, 28)}"><b>Strong</b><span>${b} and above. Close windows if you can.</span></div></div>`;
 }
-
-async function load() {
-  let stations;
+function pinIcon(l) {
+  const lvl = levelOf(l), raw = shownIndex(l), v = raw == null ? null : Math.round(raw), size = lvl == null ? 0 : 44 + v * 1.5;
+  return L.divIcon({ className: '', iconSize: [0, 0], html:
+    `<div class="pin p${lvl ?? 'x'} ${selected === l.id ? 'on' : ''}"><i class="halo" style="width:${size}px;height:${size}px"></i><b>${v ?? '–'}</b><span>${esc(l.name)}</span></div>` });
+}
+function drawMap() {
+  if (!window.L || !$('#map')) return;
+  const placed = locs.filter(l => l.lat != null && l.lng != null);
+  if (!map) {
+    map = L.map('map', { scrollWheelZoom: false, attributionControl: true, zoomSnap: .25 });
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Imagery &copy; Esri and contributors' }).addTo(map);
+    map.setView([2.3125, 102.32], 15);
+    // Keep every pin in view as the card changes size, until the visitor moves the map themselves.
+    let touched = false;
+    const fit = () => { map.invalidateSize(); if (!touched && placed.length) map.fitBounds(placed.map(l => [l.lat, l.lng]), { padding: [80, 80], animate: false }); };
+    ['mousedown', 'touchstart'].forEach(ev => $('#map').addEventListener(ev, () => { touched = true; }, { passive: true }));
+    new ResizeObserver(fit).observe($('#map'));
+    fit();
+  }
+  placed.forEach(l => {
+    if (pins[l.id]) pins[l.id].setIcon(pinIcon(l)).setLatLng([l.lat, l.lng]);
+    else pins[l.id] = L.marker([l.lat, l.lng], { icon: pinIcon(l), title: l.name, alt: l.name, riseOnHover: true }).addTo(map).on('click', () => choose(l.id));
+    pins[l.id].setZIndexOffset((levelOf(l) ?? -1) * 100);
+  });
+}
+function choose(id) { selected = selected === id ? null : id; paint(); loadHistory(); }
+let trends = [];
+function paint() {
+  drawMap();
+  const from = new Date(Date.now() - 864e5);
+  $('#locs').innerHTML = locs.map((l, k) => {
+    const lvl = levelOf(l);
+    const meta = !l.recorded_at ? 'Sensor not placed here yet' : `${l.temperature != null ? `${Math.round(l.temperature)}°C, ${Math.round(l.humidity)}% humidity. ` : ''}Read ${fmtDate(l.recorded_at)} ${fmtTime(l.recorded_at)}`;
+    return `<button class="card loc l${lvl ?? 'x'} ${selected === l.id ? 'on' : ''}" data-id="${l.id}" aria-pressed="${selected === l.id}">
+      <span class="ltop"><span class="name">${esc(l.name)}</span><span class="chip">${wordOf(l)}</span></span>
+      ${dotRing(shownIndex(l), lvl ?? 'x')}
+      <span class="rb">${ribbon(trends[k] || [], settings)}<span class="axis"><span>${fmtTime(from)}</span><span>Now</span></span></span>
+      <span class="meta">${meta}</span></button>`;
+  }).join('') || '<div class="empty">No locations set up yet.</div>';
+  document.querySelectorAll('.loc').forEach(b => b.onclick = () => choose(Number(b.dataset.id)));
+}
+async function loadStatus() {
+  const st = await rpc('get_status');
+  settings = st.settings; locs = st.locations;
+  const live = locs.filter(l => levelOf(l) != null);
+  const worst = Math.max(0, ...live.map(l => l.level));
+  const bad = live.filter(l => l.level === worst && worst > 0).map(l => l.name);
+  const learning = locs.filter(l => l.online && l.learning);
+  $('#headline').textContent = !locs.some(l => l.online) ? 'NO SENSORS ONLINE' : !live.length && learning.length ? 'LEARNING CLEAN AIR' : worst === 2 ? 'CLOSE YOUR WINDOWS' : worst === 1 ? 'YOU MAY SMELL IT' : 'AIR IS NORMAL';
+  $('#where').textContent = !live.length && learning.length ? `${learning.map(l => l.name).join(', ')}: levels start after 24 hours of learning.` : !live.length ? 'No location is reporting right now.' : worst === 0 ? `Normal at all ${live.length} reporting locations.` : `${LEVELS[worst]} odour at ${bad.join(', ')}.`;
+  $('#updated').textContent = 'UPDATED ' + fmtTime(st.server_time);
+  const chip = $('#dchip'); chip.textContent = live.length ? LEVELS[worst].toUpperCase() : 'NO DATA'; chip.className = 'dchip c' + (live.length ? worst : 'x');
+  scale(settings);
+  trends = await Promise.all(locs.map(l => l.has_device || l.recorded_at ? rpc('get_trend', { p_location: l.id, p_hours: 24 }) : []));
+  paint();
+  const rl = $('#rloc'), keep = rl.value;
+  rl.innerHTML = locs.map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join('');
+  if (keep) rl.value = keep;
+  $('#foot').textContent = 'The Odour Index compares each gas sensor with its own clean-air reading. It shows relative change and is not a certified gas measurement. The glow on the map shows the reading at that sensor, not how far the smell has spread. Map positions are approximate. '
+    + (settings.calibrated ? 'Levels are calibrated against smell reports from people on campus.' : 'Level thresholds are provisional until enough smell reports have been collected.');
+}
+// A 24-hour clock with midnight at the top. Each wedge is one hour; longer means more odour.
+function clockChart(el, rows) {
+  const mins = r => Number(r.noticeable_min) + Number(r.strong_min), total = rows.reduce((n, r) => n + mins(r), 0);
+  if (!total) { el.innerHTML = '<div class="empty">No odour recorded in this period.</div>'; return null; }
+  const c = 170, r0 = 66, r1 = 142, max = Math.max(...rows.map(mins)), top = rows.reduce((a, b) => mins(b) > mins(a) ? b : a);
+  const pt = (r, h) => { const a = h / 24 * 2 * Math.PI - Math.PI / 2; return `${(c + r * Math.cos(a)).toFixed(2)} ${(c + r * Math.sin(a)).toFixed(2)}`; };
+  const wedge = (a, b, h1, h2) => `M${pt(a, h1)}A${a} ${a} 0 ${h2 - h1 > 12 ? 1 : 0} 1 ${pt(a, h2)}L${pt(b, h2)}A${b} ${b} 0 ${h2 - h1 > 12 ? 1 : 0} 0 ${pt(b, h1)}Z`;
+  let s = `<svg class="clock" viewBox="0 0 340 340" role="img" aria-label="Minutes of odour for each hour of the day. Busiest hour ${hourLabel(top.hour)}."><path d="${wedge(r0, r1, 19, 31)}" fill="var(--night)"/>`;
+  rows.forEach(r => {
+    const h = Number(r.hour), span = r1 - r0, n = Number(r.noticeable_min) / max * span, st = Number(r.strong_min) / max * span;
+    s += `<g><title>${hourLabel(h)}: ${r.noticeable_min} min noticeable, ${r.strong_min} min strong</title>`;
+    if (n > 0) s += `<path d="${wedge(r0, r0 + n, h + .08, h + .92)}" fill="var(--l1)"/>`;
+    if (st > 0) s += `<path d="${wedge(r0 + n, r0 + n + st, h + .08, h + .92)}" fill="var(--l2)"/>`;
+    s += '</g>';
+  });
+  [0, 6, 12, 18].forEach(h => { const a = h / 24 * 2 * Math.PI - Math.PI / 2; s += `<text x="${c + 156 * Math.cos(a)}" y="${c + 156 * Math.sin(a) + 4}" text-anchor="middle" font-size="12" fill="var(--soft)">${String(h).padStart(2, '0')}</text>`; });
+  s += `<text x="${c}" y="${c + 2}" text-anchor="middle" font-size="27" font-weight="600" fill="currentColor">${hourLabel(top.hour)}</text><text x="${c}" y="${c + 21}" text-anchor="middle" font-size="12" fill="var(--soft)">busiest hour</text></svg>`;
+  el.innerHTML = s;
+  return top;
+}
+async function loadHistory() {
+  const days = Number($('#range').value), from = new Date(Date.now() - days * 864e5).toISOString(), to = new Date(Date.now() + 6e4).toISOString();
+  const loc = locs.find(l => l.id === selected);
+  $('#whenscope').textContent = loc ? `History: ${loc.name}` : 'History: all locations';
+  const [hours, sum, all, ev] = await Promise.all([
+    rpc('get_hourly', { p_location: selected, p_days: days }),
+    rpc('get_summary', { p_from: from, p_to: to, p_location: selected }),
+    rpc('get_summary', { p_from: from, p_to: to, p_location: null }),
+    rpc('get_events', { p_from: from, p_to: to, p_location: selected, p_limit: 8 }),
+  ]);
+  const top = clockChart($('#clock'), hours);
+  $('#peak').textContent = top ? `Most odour around ${hourLabel(top.hour)}. The shaded part is night, 19:00 to 07:00.` : '';
+  const most = Math.max(1, ...all.by_location.map(x => Number(x.events)));
+  $('#rank').innerHTML = all.by_location.length ? all.by_location.map(x => {
+    const n = Number(x.events), st = Number(x.strong), on = loc && loc.name === x.location;
+    return `<div class="rk ${on ? 'on' : ''}"><div class="rkt"><span>${esc(x.location)}</span><b>${n}</b></div><div class="bar"><i style="width:${(n - st) / most * 100}%;background:var(--l1)"></i><i style="width:${st / most * 100}%;background:var(--l2)"></i></div></div>`;
+  }).join('') + '<div class="legend" style="margin-top:12px"><span><i style="background:var(--l1)"></i>Noticeable</span><span><i style="background:var(--l2)"></i>Reached strong</span></div>' : '<div class="empty">No odour events in this period.</div>';
+  $('#kpis').innerHTML = [[sum.events, 'odour events'], [sum.strong_events, 'reached strong'], [sum.days_with_odour, `of ${days} days affected`], [sum.avg_minutes + ' min', 'typical length']]
+    .map(([v, l]) => `<div class="kpi"><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join('');
+  $('#events').innerHTML = ev.length ? `<table class="ev"><thead><tr><th>Location</th><th>Date</th><th>From</th><th>To</th><th class="num">Minutes</th><th>Level</th></tr></thead><tbody>` +
+    ev.map(e => `<tr><td>${esc(e.location)}</td><td>${fmtDate(e.started_at)}</td><td>${fmtTime(e.started_at)}</td><td>${e.ended_at ? fmtTime(e.ended_at) : 'Ongoing'}</td><td class="num">${e.minutes}</td><td>${e.strong ? 'Strong' : 'Noticeable'}</td></tr>`).join('') + '</tbody></table>'
+    : '<div class="empty">No odour events in this period.</div>';
+}
+document.querySelectorAll('.say .btn').forEach(b => b.onclick = async () => {
+  const m = $('#saymsg');
   try {
-    stations = await api('/latest');
-    setFeed('pill--green pill--live', 'Live');
-  } catch {
-    setFeed('pill--red', 'Unavailable');
-    $('hero-note').textContent = 'The monitoring service is not responding right now.';
-    return;
-  }
-
-  // The headline number is the campus maximum, not the mean. A single
-  // hazardous station matters more than three clean ones averaging it away.
-  const reporting = stations.filter((s) => s.aqi_score != null);
-  const worst = reporting.sort((a, b) => b.aqi_score - a.aqi_score)[0];
-
-  if (worst) {
-    const status = worst.status || 'normal';
-    $('hero-num').textContent = fmt(worst.aqi_score, 1);
-    $('hero-num').className = 'hero__num v-' + status;
-    $('hero-band').className = 'pill ' + pillFor(status);
-    $('hero-band').textContent = status;
-    $('hero-zone').textContent = `Highest at ${worst.zone_name}`;
-  } else {
-    $('hero-zone').textContent = 'No station is reporting yet';
-    $('hero-band').textContent = 'awaiting data';
-  }
-
-  $('stations').innerHTML = stations.map((s) => {
-    const status = s.status || 'offline';
-    const accent = ['normal', 'warning', 'hazardous'].includes(status) ? ` card--${status}` : '';
-    return `<div class="card${accent}">
-      <div class="card__label">
-        <span>${esc(s.code || 'Zone ' + s.zone_id)}</span>
-        <span class="pill ${s.is_physical ? 'pill--blue' : 'pill--grey'}">
-          ${s.is_physical ? 'Hardware' : 'Recorded'}</span>
-      </div>
-      <div class="card__value v-${status === 'offline' ? 'idle' : status}">
-        ${s.aqi_score == null ? '—' : fmt(s.aqi_score, 1)}</div>
-      <div class="card__foot">${esc(s.zone_name || '')} · ${ago(s.ts)}</div>
-    </div>`;
-  }).join('');
-
-  await renderStationMap('leaflet-map', stations);
-
-  try {
-    const inc = await api('/incidents?open_only=true&limit=8');
-    $('advisories').innerHTML = inc.length ? inc.map((i) => `
-      <div class="incident-row">
-        <span class="pill ${i.severity === 'critical' ? 'pill--red' : 'pill--amber'}">${esc(i.severity)}</span>
-        <span>${esc(i.message)}</span>
-        <span class="card__foot mono">${when(i.opened_at)}</span>
-      </div>`).join('')
-      : '<p class="empty">No active advisories. Campus air is within thresholds.</p>';
-  } catch { /* advisories are optional */ }
-}
-
-function tick() {
-  $('clock').textContent =
-    new Date().toLocaleTimeString('en-GB', { hour12: false }) + ' ' + (CFG.TZ_LABEL || 'MYT');
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  // Reuse the shared brand mark and theme toggle without the sidebar chrome.
-  const mark = document.querySelector('.side__mark');
-  if (mark) mark.outerHTML = markHTML();
-  const actions = document.querySelector('.masthead__actions');
-  if (actions && !document.getElementById('theme-toggle')) {
-    const btn = document.createElement('button');
-    btn.id = 'theme-toggle';
-    btn.className = 'icon-btn';
-    btn.type = 'button';
-    btn.addEventListener('click', toggleTheme);
-    actions.insertBefore(btn, actions.firstChild);
-    applyTheme(document.documentElement.getAttribute('data-theme') || 'light');
-  }
-
-  tick();
-  setInterval(tick, 1000);
-  load();
-  setInterval(load, CFG.POLL_MS || 30000);
+    if (C.DEMO_DATA) { m.textContent = 'This is a demonstration, so your answer was not saved.'; m.className = 'note'; return; }
+    await rpc('submit_report', { p_location: Number($('#rloc').value), p_level: Number(b.dataset.l) });
+    m.textContent = 'Thank you. Your report was recorded.'; m.className = 'note ok';
+  } catch (e) { m.textContent = e.message; m.className = 'note err'; }
 });
+$('#range').onchange = loadHistory;
+async function start() {
+  try { await loadStatus(); await loadHistory(); }
+  catch (e) { $('#headline').textContent = 'SERVICE UNAVAILABLE'; $('#where').textContent = 'Cannot reach the monitoring service right now. Please try again in a moment.'; }
+}
+start();
+setInterval(() => { if (!document.hidden) loadStatus().catch(() => {}); }, 60000);

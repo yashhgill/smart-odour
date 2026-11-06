@@ -1,0 +1,9 @@
+{
+  "additionalFiles": "../..,../..,../..",
+  "compiler.optimization_flags": "-Os",
+  "customBuildProperties": "",
+  "fqbn": "esp32:esp32:esp32",
+  "hardwareFolders": "/Users/yashhgill/Library/Arduino15/packages/esp32/hardware/esp32/3.3.12,/Users/yashhgill/Library/Arduino15/packages/esp32/hardware/esp32/3.3.12",
+  "otherLibrariesFolders": "/Users/yashhgill/Documents/Arduino/libraries",
+  "sketchLocation": "/Users/yashhgill/smart-odour/firmware/odour_node"
+}

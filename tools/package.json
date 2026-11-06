@@ -1,0 +1,3 @@
+{ "name": "smart-odour-tools", "private": true, "type": "module",
+  "scripts": { "test:db": "node --test test_db.mjs", "dev": "node dev_server.mjs", "enclosure": "node ../enclosure/build.mjs" },
+  "devDependencies": { "@electric-sql/pglite": "^0.3.0", "manifold-3d": "^3.0.0" } }
