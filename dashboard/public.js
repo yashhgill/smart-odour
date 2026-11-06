@@ -51,7 +51,7 @@ function drawMap() {
     L.marker(FARM, { interactive: false, keyboard: false, zIndexOffset: -500, icon: L.divIcon({ className: '', iconSize: [0, 0], html: '<div class="farmtag">Chicken farm</div>' }) }).addTo(map);
     // Keep every pin in view as the card changes size, until the visitor moves the map themselves.
     let touched = false;
-    const fit = () => { map.invalidateSize(); if (!touched && placed.length) map.fitBounds([FARM, ...placed.map(l => [l.lat, l.lng])], { padding: [55, 55], animate: false }); };
+    const fit = () => { map.invalidateSize(); if (!touched && placed.length) map.fitBounds([FARM, ...placed.map(l => [l.lat, l.lng])], { paddingTopLeft: [55, 55], paddingBottomRight: [map.getSize().x < 500 ? 115 : 55, 85], animate: false }); };
     ['mousedown', 'touchstart'].forEach(ev => $('#map').addEventListener(ev, () => { touched = true; }, { passive: true }));
     new ResizeObserver(fit).observe($('#map'));
     fit();

@@ -41,6 +41,7 @@ h1{font-size:22px;margin:0;font-weight:600;letter-spacing:-.01em}h2{font-size:15
 .pin.on b{outline:3px solid #fff;outline-offset:2px}
 .pin span{position:absolute;left:0;top:23px;transform:translateX(-50%);white-space:nowrap;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:500;background:rgba(8,16,36,.72);border:1px solid rgba(255,255,255,.22)}
 .pin.sr span{left:23px;top:0;transform:translateY(-50%)}.pin.sl span{left:-23px;top:0;transform:translate(-100%,-50%)}
+@media(max-width:600px){.pin span{white-space:normal;width:max-content;max-width:104px;font-size:10.5px;line-height:1.2;padding:3px 7px;border-radius:9px}.maplegend{gap:8px;font-size:11px;padding:5px 9px;flex-wrap:nowrap;white-space:nowrap}}
 .scale{display:flex;gap:4px;border-radius:var(--r2);overflow:hidden}.seg{padding:10px 13px;min-width:0;display:flex;flex-direction:column;gap:1px}.seg b{font-size:15px}.seg span{font-size:13px}
 .s0{background:color-mix(in srgb,var(--l0) 22%,transparent)}.s1{background:color-mix(in srgb,var(--l1) 24%,transparent)}.s2{background:color-mix(in srgb,var(--l2) 24%,transparent)}
 .locs{display:grid;grid-template-columns:repeat(auto-fit,minmax(232px,1fr));gap:14px}
