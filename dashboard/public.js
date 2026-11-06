@@ -1,5 +1,5 @@
 let selected = null, locs = [], settings = {}, map = null;
-const pins = {};
+const pins = {}, side = {};
 $('#mk').innerHTML = LOGO; themeButton($('#theme'));
 if (C.DEMO || C.BANNER) $('#demo').innerHTML = `<div class="demo">${esc(C.BANNER || 'Demonstration with simulated data')}</div>`;
 if (C.TELEGRAM_LINK) { const t = $('#tg'); t.href = C.TELEGRAM_LINK; t.hidden = false; }
@@ -38,9 +38,9 @@ function scale(s) {
 function pinIcon(l) {
   const lvl = levelOf(l), raw = shownIndex(l), v = raw == null ? null : Math.round(raw), size = lvl == null ? 0 : 44 + v * 1.5;
   return L.divIcon({ className: '', iconSize: [0, 0], html:
-    `<div class="pin p${lvl ?? 'x'} ${selected === l.id ? 'on' : ''}"><i class="halo" style="width:${size}px;height:${size}px"></i><b>${v ?? '–'}</b><span>${esc(l.name)}</span></div>` });
+    `<div class="pin p${lvl ?? 'x'} ${side[l.id] || ''} ${selected === l.id ? 'on' : ''}"><i class="halo" style="width:${size}px;height:${size}px"></i><b>${v ?? '–'}</b><span>${esc(l.name)}</span></div>` });
 }
-const FARM = [2.3195, 102.3105]; // Middle of the poultry sheds, from OpenStreetMap. A landmark, not a sensor.
+const FARM = [2.3190, 102.3118]; // The poultry sheds nearest campus, from OpenStreetMap. A landmark, not a sensor.
 function drawMap() {
   if (!window.L || !$('#map')) return;
   const placed = locs.filter(l => l.lat != null && l.lng != null);
@@ -51,11 +51,13 @@ function drawMap() {
     L.marker(FARM, { interactive: false, keyboard: false, zIndexOffset: -500, icon: L.divIcon({ className: '', iconSize: [0, 0], html: '<div class="farmtag">Chicken farm</div>' }) }).addTo(map);
     // Keep every pin in view as the card changes size, until the visitor moves the map themselves.
     let touched = false;
-    const fit = () => { map.invalidateSize(); if (!touched && placed.length) map.fitBounds([FARM, ...placed.map(l => [l.lat, l.lng])], { padding: [80, 80], animate: false }); };
+    const fit = () => { map.invalidateSize(); if (!touched && placed.length) map.fitBounds([FARM, ...placed.map(l => [l.lat, l.lng])], { padding: [55, 55], animate: false }); };
     ['mousedown', 'touchstart'].forEach(ev => $('#map').addEventListener(ev, () => { touched = true; }, { passive: true }));
     new ResizeObserver(fit).observe($('#map'));
     fit();
   }
+  // Labels alternate sides from north to south, so neighbouring pins do not cover each other's names.
+  [...placed].sort((a, b) => b.lat - a.lat || a.id - b.id).forEach((l, i) => { side[l.id] = i % 2 ? 'sl' : 'sr'; });
   placed.forEach(l => {
     if (pins[l.id]) pins[l.id].setIcon(pinIcon(l)).setLatLng([l.lat, l.lng]);
     else pins[l.id] = L.marker([l.lat, l.lng], { icon: pinIcon(l), title: l.name, alt: l.name, riseOnHover: true }).addTo(map).on('click', () => choose(l.id));
