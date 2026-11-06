@@ -70,6 +70,10 @@ select,input{background:var(--field);border:1px solid var(--rule);border-radius:
 #pick{height:380px;border-radius:var(--r2);margin-top:10px;background:#0e1a2c}
 @media(max-width:1100px){.top{grid-template-columns:1fr}.mapcard{min-height:440px}.grid3{grid-template-columns:1fr 1fr}.grid3>:first-child{grid-column:1/-1}.side .card{margin-top:0}}
 @media(max-width:860px){.bar{width:calc(100% - 24px);padding:7px 10px;top:8px}.brand,.scope{display:none}.right .btn{padding:6px 10px;font-size:13px}.grid2,.grid1-1,.grid3{grid-template-columns:1fr}.grid3>:first-child{grid-column:auto}.wrap{padding:14px 16px 32px}.mapcard{min-height:380px}.scale{flex-direction:column}.seg{flex:none!important}.ltop{min-height:0}.locs{grid-template-columns:repeat(auto-fit,minmax(100%,1fr))}.tscroll{overflow-x:auto}table.ev th:nth-child(4),table.ev td:nth-child(4){display:none}table{font-size:13.5px}.pin span{font-size:11px;padding:2px 7px}}
-@media(max-width:480px){.logo{height:28px}.bar .right{gap:5px}.right .btn{padding:5px 8px;font-size:12px}}
+@media(max-width:600px){#tg{display:none}}
+@media(max-width:480px){.logo{height:28px}.bar .right{gap:5px}.right .btn{display:inline-flex;align-items:center;min-height:38px;padding:5px 10px;font-size:12.5px}}
+/* Phones: each event reads as a short card instead of a squeezed table. */
+@media(max-width:600px){table.ev thead{display:none}table.ev tr{display:grid;grid-template-columns:auto auto 1fr auto;column-gap:10px;padding:10px 0;border-bottom:1px solid var(--rule)}table.ev td{border:0;padding:0;white-space:nowrap}table.ev td:first-child{grid-column:1/-1;white-space:normal;font-weight:600;margin-bottom:3px}table.ev td.num{text-align:left}table.ev td.num::after{content:' min'}table.ev td:last-child{justify-self:end}
+.say .btn{min-height:44px}select{min-height:44px}.leaflet-touch .leaflet-bar a{width:36px;height:36px;line-height:36px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 @media print{:root,:root[data-theme=dark]{--glass:#fff;--ink:#000;--soft:#444;--ground:#fff;--shadow:none;--line:#fff;--rule:#ccc;--step:#eee;color-scheme:light}html,body{background:#fff}body::before,.bar,.tabs,.noprint{display:none!important}.card{border:0;padding:0 0 14px;break-inside:avoid;-webkit-backdrop-filter:none;backdrop-filter:none}.wrap{max-width:none;padding:0}}

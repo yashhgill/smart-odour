@@ -32,7 +32,7 @@
 #include "secrets.h"
 #include "odour_index.h"
 
-#define FIRMWARE "2.3.0"
+#define FIRMWARE "2.3.1"
 
 // ---- hardware
 const int MQ_PINS[odour::SENSORS] = {32, 33, 34, 35};
@@ -187,7 +187,19 @@ void keepWifi() {
   if (WiFi.status() == WL_CONNECTED) return;
   if (millis() - tWifi < WIFI_MS) return;
   tWifi = millis();
+  // Says why it can't connect: a network it can't see is usually 5 GHz only or misnamed;
+  // one it can see but can't join usually means a wrong password.
+  static int tries = 0;
+  int was = WiFi.status();
   WiFi.disconnect();
+  if (tries++ % 5 == 0) {
+    int found = WiFi.scanNetworks(), rssi = 0, chan = 0;
+    bool seen = false;
+    for (int i = 0; i < found && !seen; i++)
+      if (WiFi.SSID(i) == WIFI_SSID) { seen = true; rssi = WiFi.RSSI(i); chan = WiFi.channel(i); }
+    Serial.printf("WIFI target_seen=%d rssi=%d channel=%d networks=%d last_status=%d\n", seen, rssi, chan, found, was);
+    WiFi.scanDelete();
+  }
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);   // non-blocking: sensing carries on while it connects
 }
 

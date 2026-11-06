@@ -46,7 +46,8 @@ function drawMap() {
   if (!window.L || !$('#map')) return;
   const placed = locs.filter(l => l.lat != null && l.lng != null);
   if (!map) {
-    map = L.map('map', { scrollWheelZoom: false, attributionControl: true, zoomSnap: .25 });
+    map = L.map('map', { scrollWheelZoom: false, attributionControl: true, zoomSnap: .25, zoomControl: false });
+    L.control.zoom({ position: 'topright' }).addTo(map); // top left would cover the farm label
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Imagery &copy; Esri and contributors' }).addTo(map);
     map.setView([2.3125, 102.32], 15);
     L.marker(FARM, { interactive: false, keyboard: false, zIndexOffset: -500, icon: L.divIcon({ className: '', iconSize: [0, 0], html: '<div class="farmtag">Chicken farm</div>' }) }).addTo(map);
@@ -63,6 +64,15 @@ function drawMap() {
     if (pins[l.id]) pins[l.id].setIcon(pinIcon(l)).setLatLng([l.lat, l.lng]);
     else pins[l.id] = L.marker([l.lat, l.lng], { icon: pinIcon(l), title: l.name, alt: l.name, riseOnHover: true }).addTo(map).on('click', () => choose(l.id));
     pins[l.id].setZIndexOffset((levelOf(l) ?? -1) * 100);
+  });
+  // On a narrow map, a label that would run off the edge goes on the pin's other side.
+  const box = $('#map').getBoundingClientRect();
+  Object.values(pins).forEach(p => {
+    const pin = p.getElement()?.querySelector('.pin'), tag = pin?.querySelector('span');
+    if (!tag) return;
+    const r = tag.getBoundingClientRect();
+    if (r.left < box.left + 4 && pin.classList.contains('sl')) pin.classList.replace('sl', 'sr');
+    else if (r.right > box.right - 4 && pin.classList.contains('sr')) pin.classList.replace('sr', 'sl');
   });
 }
 function choose(id) { selected = selected === id ? null : id; paint(); loadHistory(); }

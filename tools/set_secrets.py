@@ -19,7 +19,7 @@ def current(name):
 def c_string(s):
     return s.replace('\\', '\\\\').replace('"', '\\"')
 
-ssid = input('Wi-Fi name (2.4 GHz, capitals matter): ').strip()
+ssid = input('Wi-Fi name (2.4 GHz, capitals and any space at the end matter): ')  # not trimmed: a name can end in a space
 password = getpass.getpass('Wi-Fi password (hidden as you type): ')
 key = getpass.getpass('NODE-1 device key from the admin page (hidden as you type): ').strip()
 if not ssid or not password or not key:
