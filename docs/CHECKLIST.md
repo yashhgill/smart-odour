@@ -20,6 +20,7 @@ The MQ modules run at 5 V and their output can rise close to 5 V, but ESP32 inpu
 | Telegram bot sign-up | Token saved and webhook connected. One person has pressed Start |
 | Bot security | The webhook refuses a request with the wrong secret (403) |
 | Map pins | Moved to OpenStreetMap positions and checked on satellite |
+| Update over Wi-Fi (OTA) | 14 Nov: firmware 2.3.1 replaced by 2.3.2 over Wi-Fi in 20 s; the database shows fw=2.3.2. See docs/OTA.md |
 | Phone layout | Checked at 375 px: public page, admin page, map, event list and all 7 guide steps. No sideways scrolling, no clipped labels |
 
 ## Built, not yet tested for real
@@ -29,7 +30,6 @@ The MQ modules run at 5 V and their output can rise close to 5 V, but ESP32 inpu
 | Telegram odour alert | No real alert has gone out, because test mode blocks public alerts. Test it once the sensor is at Satria |
 | Telegram device alert | Send the `/admin` code to the bot, then unplug the board and wait for the offline message |
 | Re-learn and Restart buttons | Built and covered by database tests. Not yet pressed against the real board |
-| Update over Wi-Fi (OTA) | Built into the firmware, never used |
 | Real odour readings | The board is at home in Sunway, so nothing has smelled the farm yet. It is also learning that room's air for 24 hours, so it must re-learn at Satria |
 | Odour levels (30 and 60) | Starting values only. They need calibrating from real smell reports at UTeM |
 | Phone layout on real phones | Tested in a phone-sized browser view. Open it once on an iPhone and an Android |
@@ -38,7 +38,7 @@ The MQ modules run at 5 V and their output can rise close to 5 V, but ESP32 inpu
 
 | Part | What is needed |
 |---|---|
-| Enclosure, new compact version | Measurements of the base, fan and MQ modules. The older 174 x 147 x 78 mm design exists but has not been printed |
+| Enclosure, compact version | Designed for the Bambu A1: 122 x 92 x 72 mm, passes the fit check (enclosure/compact). Measure the parts, print the lid first, then the body |
 | Haze and particle readings | Needs a PMS5003 sensor. The MQ sensors cannot measure particles |
 | Sensors at Lestari, cafeteria and other sites | More boards. The website already has their places on the map |
 | UTeM Wi-Fi | Firmware supports a plain name and password only. A login page needs UTeM IT, or a hotspot |

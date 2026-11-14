@@ -1,0 +1,28 @@
+{
+  "outer_mm": {
+    "width": 121.8,
+    "depth": 91.8,
+    "height_without_feet_or_cans": 72.4
+  },
+  "height_with_feet_and_cans_mm": 95,
+  "inside_mm": {
+    "width": 117,
+    "depth": 87,
+    "height": 67.6
+  },
+  "clearances_mm": {
+    "mq_wires_to_base": 3,
+    "lcd_back_to_base": 8.4,
+    "base_to_fan": 10
+  },
+  "watertight": {
+    "body": true,
+    "lid": true
+  },
+  "grams_petg_solid": {
+    "body": 118,
+    "lid": 25,
+    "feet": 5
+  },
+  "problems": []
+}

@@ -32,7 +32,7 @@
 #include "secrets.h"
 #include "odour_index.h"
 
-#define FIRMWARE "2.3.1"
+#define FIRMWARE "2.3.2"
 
 // ---- hardware
 const int MQ_PINS[odour::SENSORS] = {32, 33, 34, 35};

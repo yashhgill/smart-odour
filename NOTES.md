@@ -21,3 +21,7 @@ Next: user runs tools/set_secrets.py, adds NODE-1 on the admin page, revokes the
 ## Board live on Wi-Fi, phone layout and checklist (2026-11-07)
 Changed: the board runs firmware 2.3.1 on room Wi-Fi and uploads to the live database (Lekiu, test mode, first reading 02:51). The Wi-Fi name has a trailing space, so set_secrets.py no longer trims it. Bot token set and one subscriber joined. Phone layout fixed: header fits, 38 px header buttons, events as short cards, map labels flip inside the map, zoom buttons moved to the top right. docs/CHECKLIST.md lists what is built, tested and missing.
 Next: add voltage dividers before Satria (docs/WIRING.md). Send /admin code to the bot and test a device alert. Remove the TV bridge when USB is no longer needed: the board only needs power. Enclosure redesign is waiting on measurements. Confirm cafeteria and farm-side pins with Azira.
+
+## OTA proven and compact enclosure (2026-11-14)
+Changed: OTA tested for real. Firmware 2.3.2 went over home Wi-Fi with espota (the board is odour-node on mDNS); flash 4 MB with two 1,280 KB app slots, sketch at 87%. See docs/OTA.md. espota needs the sandbox off, because the board connects back to the laptop. New enclosure/build_compact.mjs makes a 122 x 92 x 72 mm box for the Bambu A1: LCD, MQ cans and DHT11 in the lid, fan in the floor, USB at the back, no supports. The base size (80 x 64 x 40) is estimated from a photo.
+Next: the user measures the parts, edits P and reruns, then prints the lid as a fit test. Option: pull OTA from the admin page, so updates work off-network.

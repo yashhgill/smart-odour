@@ -1,3 +1,5 @@
+**Use the compact version in `compact/` (122 x 92 x 72 mm, made for the Bambu Lab A1).** What follows is the older, larger wall-mount design.
+
 # Enclosure
 
 Outer size 174 x 147 x 78 mm, within the 18 cm limit. Print the four files in `stl/` (millimetres).
