@@ -22,7 +22,7 @@ There is no need to change the Partition Scheme, as some guides suggest. The boa
 2. Open `firmware/odour_node/odour_node.ino`. Keep **Tools > Partition Scheme** on "Default 4MB with spiffs".
 3. **Tools > Port**: choose the network port `odour-node at 192.168.x.x`. It can take a minute to appear.
 4. Click **Upload**. When asked for a password, enter the `OTA_PASSWORD` from `firmware/odour_node/secrets.h`.
-5. The LCD shows "Updating code / Do not unplug". The board restarts, warms up for 5 minutes, and then sends readings again.
+5. The LCD shows "Updating code / Do not unplug". The board restarts, warms up for 1 minute, and then sends readings again.
 
 From the command line, the equivalent is:
 
@@ -34,4 +34,19 @@ python3 ~/Library/Arduino15/packages/esp32/hardware/esp32/<version>/tools/espota
 
 - **Same network only.** The laptop and the board must be on the same Wi-Fi or hotspot. On UTeM Wi-Fi this may not work, because campus networks often block devices from reaching each other (client isolation). A phone hotspot shared by the laptop and the board always works.
 - **Room to grow:** about 160 KB is left in each slot. If the code grows past that, switch once, over USB, to "Minimal SPIFFS (1.9MB APP with OTA)".
-- **Updating from anywhere** (for example from the admin page, while the laptop is elsewhere) needs a different method, where the board downloads the new firmware from the internet. That is not built yet. It would use the same command channel as the Re-learn and Restart buttons.
+- For updates from anywhere, use the admin page (below).
+
+## Updating from anywhere (admin page)
+
+Firmware 2.4.0 and later can download new firmware by itself, so the laptop does not need to be on the same network.
+
+1. In Arduino IDE, choose **Sketch > Export Compiled Binary**. This makes `odour_node.ino.bin` in the sketch's `build` folder. Raise `FIRMWARE` at the top of the sketch first, so you can see that the update worked.
+2. Open the admin page, then the **Wi-Fi and updates** tab, and under **Update firmware** choose that `.bin` file.
+3. The page checks the file, uploads it to the private `firmware` storage bucket, and sends the board a link that works for one hour, along with the file's SHA-256 checksum.
+4. On its next upload (within 2 minutes) the board downloads the file, checks the checksum, installs it in the spare slot and restarts. The tab then shows "Updated from 2.4.0 to 2.4.1", or the reason it refused.
+
+If the download breaks or the checksum is wrong, the board keeps running the old firmware. The `.bin` holds the Wi-Fi password and device key, so the bucket is private. Delete old files from Storage > firmware after the update.
+
+## Changing the Wi-Fi from the admin page
+
+On the same tab, **Scan** asks the board which networks it can see. Pick one, type the password and press **Connect now**. The board tries the new network. If that fails, it goes back to the old one and reports "Could not join". **Save for later** stores a network for a new site. The board joins whichever saved network is in range, so you can set up the UTeM network before you move the box. The network built into `secrets.h` is always kept as a fallback.

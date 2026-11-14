@@ -21,6 +21,10 @@ The MQ modules run at 5 V and their output can rise close to 5 V, but ESP32 inpu
 | Bot security | The webhook refuses a request with the wrong secret (403) |
 | Map pins | Moved to OpenStreetMap positions and checked on satellite |
 | Update over Wi-Fi (OTA) | 14 Nov: firmware 2.3.1 replaced by 2.3.2 over Wi-Fi in 20 s; the database shows fw=2.3.2. See docs/OTA.md |
+| Update from the admin page (from anywhere) | 14 Nov: firmware 2.4.0 downloaded 2.4.1 from private storage, checked its SHA-256, installed it and reported "Updated from 2.4.0 to 2.4.1." |
+| Change Wi-Fi from the admin page | 14 Nov: Scan listed 15 networks; joining a wrong network fell back to the old one with "Could not join ... Not saved." |
+| Live readings from boot | Warm-up is 1 minute; readings show at once, with no "sensor in test" wait |
+| Sample data at every location | SAMPLE- devices, 6 days each. **Remove with `select private.clear_sample();` before collecting report results** |
 | Phone layout | Checked at 375 px: public page, admin page, map, event list and all 7 guide steps. No sideways scrolling, no clipped labels |
 
 ## Built, not yet tested for real

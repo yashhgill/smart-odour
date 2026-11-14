@@ -273,3 +273,34 @@ test('anon cannot reach the private ingest or bot setup directly', async () => {
   await assert.rejects(db.transaction(async tx => { await tx.exec('set local role anon'); await tx.query(`select private.set_telegram('x')`); }));
   await assert.rejects(db.transaction(async tx => { await tx.exec('set local role anon'); await tx.query(`select private.ingest_core('a','b','[]'::jsonb,'{}'::jsonb)`); }));
 });
+
+test('Wi-Fi commands reach the device as JSON, and the admin never sees the password', async () => {
+  await reset();
+  await assert.rejects(rpc(db, 'admin_device_command', { p_device: 'NODE-1', p_command: { cmd: 'scan' } }), e => e.code !== undefined);
+  await assert.rejects(rpc(db, 'admin_device_command', { p_device: 'NODE-1', p_command: { cmd: 'wifi_add', ssid: 'Hotspot', pass: 'short' } }, asAdmin), e => e.code === 'PT400');
+  await rpc(db, 'admin_device_command', { p_device: 'NODE-1', p_command: { cmd: 'wifi_add', ssid: 'Satria Hotspot ', pass: 'secret123', now: true } }, asAdmin);
+  const ov = await rpc(db, 'admin_overview', {}, asAdmin);
+  assert.equal(ov.devices.find(d => d.id === 'NODE-1').pending_command, 'wifi_add');
+  assert.ok(!JSON.stringify(ov).includes('secret123'));
+  const got = await send([row(1, 5)]);
+  assert.deepEqual(got.command, { cmd: 'wifi_add', ssid: 'Satria Hotspot ', pass: 'secret123', now: true });
+  assert.equal((await q1(`select pending_command c from devices where id = 'NODE-1'`))[0].c, null);
+});
+
+test('the device reports its networks and command results', async () => {
+  await reset();
+  await rpc(db, 'ingest', { p_device: 'NODE-1', p_key: KEY, p_rows: [], p_meta: { fw: 't', ssid: 'Home', saved: ['Home', 'Hotspot'], scan: [{ s: 'Home', r: -50, e: true }], report: 'Connected to Hotspot' } });
+  const d = (await rpc(db, 'admin_overview', {}, asAdmin)).devices.find(x => x.id === 'NODE-1');
+  assert.equal(d.wifi_ssid, 'Home'); assert.deepEqual(d.wifi_saved, ['Home', 'Hotspot']);
+  assert.equal(d.wifi_scan[0].s, 'Home'); assert.equal(d.last_report, 'Connected to Hotspot');
+  await send([row(1, 5)]);   // a normal upload keeps what was reported
+  assert.equal((await rpc(db, 'admin_overview', {}, asAdmin)).devices.find(x => x.id === 'NODE-1').wifi_ssid, 'Home');
+});
+
+test('firmware updates only come from the project storage, with a checksum', async () => {
+  const sha = 'a'.repeat(64), url = 'https://nikdxqsardermmjkfudv.supabase.co/storage/v1/object/sign/firmware/fw.bin?token=x';
+  await assert.rejects(rpc(db, 'admin_device_command', { p_device: 'NODE-1', p_command: { cmd: 'update', url: 'https://evil.example/fw.bin', sha256: sha } }, asAdmin), e => e.code === 'PT400');
+  await assert.rejects(rpc(db, 'admin_device_command', { p_device: 'NODE-1', p_command: { cmd: 'update', url } }, asAdmin), e => e.code === 'PT400');
+  await rpc(db, 'admin_device_command', { p_device: 'NODE-1', p_command: { cmd: 'update', url, sha256: sha, version: '2.4.0' } }, asAdmin);
+  assert.equal((await send([row(1, 5)])).command.cmd, 'update');
+});

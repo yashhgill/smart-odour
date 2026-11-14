@@ -16,3 +16,6 @@ report/
 .wrangler/
 firmware/odour_node/build/
 firmware/backup/
+
+# copies of older drafts, slides and code from Downloads (local only)
+archive/

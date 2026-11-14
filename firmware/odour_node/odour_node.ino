@@ -26,13 +26,16 @@
 #include <ArduinoOTA.h>
 #include <HTTPClient.h>
 #include <Preferences.h>
+#include <Update.h>
+#include <ArduinoJson.h>
+#include <mbedtls/sha256.h>
 #include <DHT.h>
 #include <LiquidCrystal_I2C.h>
 #include <time.h>
 #include "secrets.h"
 #include "odour_index.h"
 
-#define FIRMWARE "2.3.2"
+#define FIRMWARE "2.4.1"
 
 // ---- hardware
 const int MQ_PINS[odour::SENSORS] = {32, 33, 34, 35};
@@ -56,7 +59,7 @@ const unsigned long SEND_MS     = 5000UL;
 const unsigned long LCD_MS      = 3000UL;
 const unsigned long LIVE_MS     = 5000UL;
 const unsigned long WIFI_MS     = 20000UL;
-const unsigned long WARMUP_MS   = 300000UL;       // 5 minutes for heaters after each power-on
+const unsigned long WARMUP_MS   = 60000UL;        // 1 minute for heaters after power-on, then readings start
 const unsigned long LEARNING_S  = 86400UL;        // 24 hours to learn clean air on a new node
 const int           SEND_BATCH  = 20;
 
@@ -183,24 +186,155 @@ void keepOta() {
   Serial.printf("OTA ready at %s\n", WiFi.localIP().toString().c_str());
 }
 
+bool restartAfterSend = false;
+void relearn();
+// ---- Wi-Fi: the built-in network from secrets.h plus up to 6 more saved from the admin page.
+// When the connection drops, the node joins the strongest saved network it can see.
+JsonDocument savedNets;          // [{"s": name, "p": password}]
+String pendingReport, pendingScan;
+bool forceSend = false;
+
+void loadNets() {
+  if (deserializeJson(savedNets, store.getString("nets", "[]")) || !savedNets.is<JsonArray>()) savedNets.to<JsonArray>();
+  pendingReport = store.getString("report", "");
+}
+void saveNets() { String out; serializeJson(savedNets, out); store.putString("nets", out); }
+String passwordFor(const String& ssid) {
+  if (ssid == WIFI_SSID) return WIFI_PASSWORD;
+  for (JsonObject n : savedNets.as<JsonArray>()) if (ssid == n["s"].as<const char*>()) return n["p"].as<String>();
+  return String();
+}
+bool isKnown(const String& ssid) {
+  if (ssid == WIFI_SSID) return true;
+  for (JsonObject n : savedNets.as<JsonArray>()) if (ssid == n["s"].as<const char*>()) return true;
+  return false;
+}
+void report(const String& msg) {           // sent with the next upload, kept across a restart
+  pendingReport = msg; store.putString("report", msg); forceSend = true;
+  Serial.println("REPORT " + msg);
+}
+bool joinNow(const String& ssid, const String& pass, unsigned long waitMs) {
+  WiFi.disconnect();
+  delay(200);
+  WiFi.begin(ssid.c_str(), pass.c_str());
+  unsigned long t0 = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - t0 < waitMs) { delay(250); }
+  return WiFi.status() == WL_CONNECTED;
+}
+
 void keepWifi() {
   if (WiFi.status() == WL_CONNECTED) return;
   if (millis() - tWifi < WIFI_MS) return;
   tWifi = millis();
-  // Says why it can't connect: a network it can't see is usually 5 GHz only or misnamed;
-  // one it can see but can't join usually means a wrong password.
-  static int tries = 0;
-  int was = WiFi.status();
-  WiFi.disconnect();
-  if (tries++ % 5 == 0) {
-    int found = WiFi.scanNetworks(), rssi = 0, chan = 0;
-    bool seen = false;
-    for (int i = 0; i < found && !seen; i++)
-      if (WiFi.SSID(i) == WIFI_SSID) { seen = true; rssi = WiFi.RSSI(i); chan = WiFi.channel(i); }
-    Serial.printf("WIFI target_seen=%d rssi=%d channel=%d networks=%d last_status=%d\n", seen, rssi, chan, found, was);
-    WiFi.scanDelete();
+  // Join the strongest known network in range. Take turns among them, so one with a wrong
+  // password cannot block the others.
+  static int turn = 0;
+  int found = WiFi.scanNetworks();
+  String names[8]; int count = 0;
+  for (int i = 0; i < found && count < 8; i++) {          // scan results come strongest first
+    String s = WiFi.SSID(i);
+    bool dup = false;
+    for (int k = 0; k < count; k++) if (names[k] == s) dup = true;
+    if (!dup && isKnown(s)) names[count++] = s;
   }
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);   // non-blocking: sensing carries on while it connects
+  WiFi.scanDelete();
+  String pick = count ? names[turn++ % count] : String(WIFI_SSID);
+  Serial.printf("WIFI known_in_range=%d networks=%d joining=%s\n", count, found, pick.c_str());
+  WiFi.disconnect();
+  WiFi.begin(pick.c_str(), passwordFor(pick).c_str());   // non-blocking: sensing carries on while it connects
+}
+
+void scanForAdmin() {
+  int found = WiFi.scanNetworks();
+  JsonDocument doc; JsonArray a = doc.to<JsonArray>();
+  for (int i = 0; i < found && a.size() < 15; i++) {
+    bool dup = false;
+    for (JsonObject o : a) if (WiFi.SSID(i) == o["s"].as<const char*>()) dup = true;
+    if (dup || WiFi.SSID(i).length() == 0) continue;
+    JsonObject o = a.add<JsonObject>();
+    o["s"] = WiFi.SSID(i); o["r"] = WiFi.RSSI(i); o["e"] = WiFi.encryptionType(i) != WIFI_AUTH_OPEN;
+  }
+  WiFi.scanDelete();
+  pendingScan = ""; serializeJson(doc, pendingScan);
+  forceSend = true;
+  Serial.printf("SCAN %d networks\n", (int)a.size());
+}
+
+void addNetwork(const String& ssid, const String& pass, bool now) {
+  if (now) {
+    String was = WiFi.SSID();
+    lcdLine(0, "Trying Wi-Fi"); lcdLine(1, ssid);
+    if (!joinNow(ssid, pass, 20000)) {
+      joinNow(was, passwordFor(was), 20000);   // back to the network that worked
+      report("Could not join " + ssid + ". Check the name and password, and that it is 2.4 GHz and in range. Not saved.");
+      return;
+    }
+  }
+  if (ssid != WIFI_SSID) {
+    JsonArray a = savedNets.as<JsonArray>();
+    for (size_t i = 0; i < a.size(); i++) if (ssid == a[i]["s"].as<const char*>()) { a.remove(i); break; }
+    if (a.size() >= 6) a.remove(0);
+    JsonObject n = a.add<JsonObject>(); n["s"] = ssid; n["p"] = pass;
+    saveNets();
+  }
+  report(now ? "Connected to " + ssid + " and saved it." : "Saved " + ssid + ". It will be used when it is in range.");
+}
+
+void forgetNetwork(const String& ssid) {
+  JsonArray a = savedNets.as<JsonArray>();
+  for (size_t i = 0; i < a.size(); i++) if (ssid == a[i]["s"].as<const char*>()) { a.remove(i); saveNets(); report("Forgot " + ssid + "."); return; }
+  report(ssid == WIFI_SSID ? ssid + " is built into the firmware and cannot be removed." : ssid + " was not saved.");
+}
+
+// Downloads new firmware into the spare app slot, checks its SHA-256, and restarts into it.
+// If anything fails, the running firmware stays.
+void updateFrom(const String& url, const String& sha, const String& version) {
+  lcdLine(0, "Updating code"); lcdLine(1, "Do not unplug");
+  WiFiClientSecure tls; tls.setInsecure();
+  WiFiClient plain;
+  HTTPClient http;
+  http.setTimeout(15000);
+  if (url.startsWith("https://")) http.begin(tls, url); else http.begin(plain, url);
+  int code = http.GET();
+  int size = http.getSize();
+  if (code != 200 || size <= 0) { http.end(); report("Update failed: download error " + String(code) + "."); return; }
+  if (!Update.begin(size)) { http.end(); report("Update failed: too big for the update slot."); return; }
+  mbedtls_sha256_context ctx; mbedtls_sha256_init(&ctx); mbedtls_sha256_starts(&ctx, 0);
+  WiFiClient* in = http.getStreamPtr();
+  uint8_t buf[1024]; int got = 0; unsigned long last = millis();
+  while (got < size && millis() - last < 15000) {
+    int n = in->readBytes(buf, min((int)sizeof(buf), size - got));
+    if (n <= 0) continue;
+    last = millis();
+    mbedtls_sha256_update(&ctx, buf, n);
+    if (Update.write(buf, n) != (size_t)n) break;
+    got += n;
+    if (got % 65536 < 1024) lcdLine(1, String(got * 100 / size) + "% of " + String(size / 1024) + " KB");
+  }
+  http.end();
+  uint8_t digest[32]; mbedtls_sha256_finish(&ctx, digest); mbedtls_sha256_free(&ctx);
+  char hex[65]; for (int i = 0; i < 32; i++) sprintf(hex + i * 2, "%02x", digest[i]);
+  if (got != size) { Update.abort(); report("Update failed: download stopped at " + String(got) + " of " + String(size) + " bytes."); return; }
+  if (sha != hex) { Update.abort(); report("Update failed: checksum did not match, so nothing was installed."); return; }
+  if (!Update.end(true)) { report("Update failed: " + String(Update.errorString())); return; }
+  store.putString("report", "Updated from " FIRMWARE " to " + (version.length() ? version : String("new firmware")) + ".");
+  lcdLine(0, "Update done"); lcdLine(1, "Restarting");
+  delay(500);
+  ESP.restart();
+}
+
+void runCommand(JsonVariant c) {
+  if (c.is<const char*>()) {
+    String w = c.as<String>();
+    if (w == "relearn") relearn();
+    else if (w == "restart") restartAfterSend = true;
+    return;
+  }
+  String cmd = c["cmd"] | "";
+  if (cmd == "scan") scanForAdmin();
+  else if (cmd == "wifi_add") addNetwork(c["ssid"] | "", c["pass"] | "", c["now"] | false);
+  else if (cmd == "wifi_forget") forgetNetwork(c["ssid"] | "");
+  else if (cmd == "update") updateFrom(c["url"] | "", c["sha256"] | "", c["version"] | "");
 }
 
 void takeSample() {
@@ -262,9 +396,15 @@ String buildBody(int n) {
             ",\"l\":" + (rd.learning ? "true" : "false") + "}";
   }
   rows += "]";
-  return "{\"p_device\":\"" DEVICE_ID "\",\"p_key\":\"" DEVICE_KEY "\",\"p_rows\":" + rows +
-         ",\"p_meta\":{\"fw\":\"" FIRMWARE "\",\"rssi\":" + String(WiFi.RSSI()) +
-         ",\"q\":" + String(queue.count()) + "}}";
+  JsonDocument meta;
+  meta["fw"] = FIRMWARE; meta["rssi"] = WiFi.RSSI(); meta["q"] = queue.count(); meta["ssid"] = WiFi.SSID();
+  JsonArray saved = meta["saved"].to<JsonArray>();
+  saved.add(WIFI_SSID);
+  for (JsonObject n : savedNets.as<JsonArray>()) saved.add(n["s"].as<const char*>());
+  if (pendingScan.length()) meta["scan"] = serialized(pendingScan);
+  if (pendingReport.length()) meta["report"] = pendingReport;
+  String m; serializeJson(meta, m);
+  return "{\"p_device\":\"" DEVICE_ID "\",\"p_key\":\"" DEVICE_KEY "\",\"p_rows\":" + rows + ",\"p_meta\":" + m + "}";
 }
 
 float jsonField(const String& s, const char* name, float fallback) {
@@ -283,11 +423,10 @@ void relearn() {
   Serial.println("RELEARN started");
 }
 
-bool restartAfterSend = false;
 // A batch leaves the queue only after the server confirms it. If the reply is
 // lost and the batch is sent again, the server counts those rows as duplicates.
 void sendBatch() {
-  if (queue.count() == 0 || WiFi.status() != WL_CONNECTED) return;
+  if ((queue.count() == 0 && !forceSend) || WiFi.status() != WL_CONNECTED) return;
   int n = queue.count() < SEND_BATCH ? queue.count() : SEND_BATCH;
 
   WiFiClientSecure tls;
@@ -305,11 +444,12 @@ void sendBatch() {
     strong = jsonField(reply, "strong", strong);
     failWait = SEND_MS;
     Serial.printf("sent %d: %s\n", n, reply.c_str());
+    // What was reported has arrived, so it is not sent again.
+    forceSend = false; pendingScan = "";
+    if (pendingReport.length()) { pendingReport = ""; store.remove("report"); }
     // The website queues a command, and it arrives in the reply to the next upload.
-    if (reply.indexOf("\"command\"") >= 0) {
-      if (reply.indexOf("\"relearn\"") >= 0) relearn();
-      else if (reply.indexOf("\"restart\"") >= 0) restartAfterSend = true;
-    }
+    JsonDocument doc;
+    if (!deserializeJson(doc, reply) && !doc["command"].isNull()) { http.end(); runCommand(doc["command"]); if (restartAfterSend) { Serial.println("RESTART requested"); delay(200); ESP.restart(); } return; }
   } else {
     // Back off up to 5 minutes so a cloud outage is not hammered.
     failWait = min(failWait * 2, 300000UL);
@@ -336,6 +476,7 @@ void setup() {
   store.begin("odour", false);
   store.getBytes("base", baseline, sizeof(baseline));
   learnedSeconds = store.getULong("learned", 0);
+  loadNets();
 
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);

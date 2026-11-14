@@ -34,10 +34,10 @@ async function boot() {
 $('#out').onclick = () => { try { sessionStorage.removeItem('odour_token'); } catch {} showLogin(); };
 
 function render() {
-  const tabs = [['report', 'Reports'], ['locations', 'Locations and devices'], ['calibrate', 'Calibration'], ['reliability', 'Reliability'], ['alerts', 'Alerts']];
+  const tabs = [['report', 'Reports'], ['locations', 'Locations and devices'], ['calibrate', 'Calibration'], ['reliability', 'Reliability'], ['wifi', 'Wi-Fi and updates'], ['alerts', 'Alerts']];
   app.innerHTML = `<nav class="tabs noprint">${tabs.map(([k, l]) => `<button data-t="${k}" class="${tab === k ? 'on' : ''}">${l}</button>`).join('')}</nav><div id="view" style="display:grid;gap:14px"></div>`;
   app.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { tab = b.dataset.t; render(); });
-  ({ report, locations, calibrate, reliability, alerts })[tab]();
+  ({ report, locations, calibrate, reliability, wifi, alerts })[tab]();
 }
 const locOpts = (sel, all) => (all ? '<option value="">All locations</option>' : '') + data.locations.map(l => `<option value="${l.id}" ${sel === l.id ? 'selected' : ''}>${esc(l.name)}</option>`).join('');
 const num = v => v === '' || v == null ? null : Number(v);
@@ -96,9 +96,98 @@ function locations() {
   app.querySelectorAll('[data-tog]').forEach(b => b.onclick = async () => { const l = data.locations.find(x => x.id === Number(b.dataset.tog)); await rpc('admin_save_location', { p_id: l.id, p_name: l.name, p_kind: l.kind, p_active: !l.active }, true); await refresh(); render(); });
   app.querySelectorAll('[data-test]').forEach(b => b.onclick = async () => { const l = data.locations.find(x => x.id === Number(b.dataset.test)); await rpc('admin_set_test_mode', { p_location: l.id, p_on: !l.test_mode }, true); await refresh(); render(); });
   app.querySelectorAll('[data-clear]').forEach(b => b.onclick = async () => { const l = data.locations.find(x => x.id === Number(b.dataset.clear)); if (!confirm(`Delete all readings and events for ${l.name}? This cannot be undone.`)) return; const n = await rpc('admin_clear_test_data', { p_location: l.id }, true); alert(`Deleted ${n} readings.`); });
-  app.querySelectorAll('[data-cmd]').forEach(b => b.onclick = async () => { const [id, cmd] = b.dataset.cmd.split('|'); const ask = cmd === 'relearn' ? `Make ${id} learn clean air again? It shows no levels for 24 hours. Do this once it is at its real location.` : `Restart ${id}? It warms up again for 5 minutes.`; if (!confirm(ask)) return; await rpc('admin_send_command', { p_device: id, p_command: cmd }, true); await refresh(); render(); });
+  app.querySelectorAll('[data-cmd]').forEach(b => b.onclick = async () => { const [id, cmd] = b.dataset.cmd.split('|'); const ask = cmd === 'relearn' ? `Make ${id} learn clean air again? It shows no levels for 24 hours. Do this once it is at its real location.` : `Restart ${id}? It warms up again for 1 minute.`; if (!confirm(ask)) return; await rpc('admin_send_command', { p_device: id, p_command: cmd }, true); await refresh(); render(); });
   app.querySelectorAll('[data-mv]').forEach(s => s.onchange = async () => { await rpc('admin_save_device', { p_id: s.dataset.mv, p_location: Number(s.value) }, true); await refresh(); render(); });
   app.querySelectorAll('[data-rot]').forEach(b => b.onclick = async () => { const d = data.devices.find(x => x.id === b.dataset.rot); if (!confirm(`Create a new key for ${d.id}? The node stops sending until it is updated.`)) return; showKey(await rpc('admin_save_device', { p_id: d.id, p_location: d.location_id, p_rotate: true }, true)); });
+}
+// ---------- the sensor's Wi-Fi and firmware, changed from here instead of by cable
+let wifiDev = null, wifiBusy = '';
+const bars = r => r >= -55 ? 'Strong' : r >= -67 ? 'Good' : r >= -78 ? 'Weak' : 'Very weak';
+const ago = t => { if (!t) return ''; const m = Math.round((Date.now() - new Date(t)) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : `${fmtDate(t)} ${fmtTime(t)}`; };
+async function waitFor(check, msg) {
+  wifiBusy = msg; wifi();
+  const until = Date.now() + 180000;
+  while (Date.now() < until) {
+    await new Promise(r => setTimeout(r, 5000));
+    data = await rpc('admin_overview', {}, true);
+    if (tab !== 'wifi') return;
+    if (check(data.devices.find(d => d.id === wifiDev))) break;
+  }
+  wifiBusy = ''; wifi();
+}
+async function sha256Hex(buf) { return [...new Uint8Array(await crypto.subtle.digest('SHA-256', buf))].map(b => b.toString(16).padStart(2, '0')).join(''); }
+function wifi() {
+  const devs = data.devices.filter(d => !d.id.startsWith('SAMPLE-'));
+  if (!devs.length) { $('#view').innerHTML = '<section class="card"><p>No devices yet. Add one under Locations and devices.</p></section>'; return; }
+  if (!devs.some(d => d.id === wifiDev)) wifiDev = devs[0].id;
+  const d = devs.find(x => x.id === wifiDev), loc = data.locations.find(l => l.id === d.location_id);
+  const online = d.last_seen && Date.now() - new Date(d.last_seen) < 3 * 60000 * 3;
+  const saved = d.wifi_saved || [], scan = d.wifi_scan || [];
+  $('#view').innerHTML = `<section class="card"><div class="head"><h2>Sensor</h2>${devs.length > 1 ? `<label>Device<select id="wd">${devs.map(x => `<option ${x.id === wifiDev ? 'selected' : ''}>${esc(x.id)}</option>`).join('')}</select></label>` : ''}</div>
+    <div class="kpis wk"><div class="kpi"><b>${esc(d.id)}</b><span>${esc(loc ? loc.name : '')}</span></div><div class="kpi"><b>${online ? 'Online' : 'Offline'}</b><span>last seen ${d.last_seen ? ago(d.last_seen) : 'never'}</span></div>
+    <div class="kpi"><b>${esc(d.wifi_ssid || '–')}</b><span>Wi-Fi now${d.rssi != null ? `, ${bars(d.rssi)} (${d.rssi} dBm)` : ''}</span></div><div class="kpi"><b>${esc(d.firmware || '–')}</b><span>firmware</span></div></div>
+    ${d.last_report ? `<div class="note" role="status" style="margin-top:12px"><b>Sensor says:</b> ${esc(d.last_report)} <span class="sub">${ago(d.last_report_at)}</span></div>` : ''}
+    ${wifiBusy ? `<div class="note" role="status" style="margin-top:12px">${esc(wifiBusy)} The sensor picks this up at its next upload, within about a minute.</div>` : ''}
+    ${d.pending_command && !wifiBusy ? `<div class="note" style="margin-top:12px">${esc(d.pending_command)} is waiting for the sensor.</div>` : ''}</section>
+    <div class="grid1-1"><section class="card"><div class="head"><h2>Wi-Fi networks</h2><button class="btn" id="wscan" ${wifiBusy ? 'disabled' : ''}>Scan for networks</button></div>
+    <p class="sub">Networks the sensor can see${d.wifi_scan_at ? `, scanned ${ago(d.wifi_scan_at)}` : ''}. Tap one to fill in its name. Only 2.4 GHz networks with a plain password work, not login pages.</p>
+    <div class="tscroll"><table><thead><tr><th>Name</th><th>Signal</th><th></th></tr></thead><tbody>${scan.map(n => `<tr><td>${esc(n.s)}${n.s === d.wifi_ssid ? ' <span class="sub">(connected)</span>' : ''}</td><td>${bars(n.r)}</td><td class="num"><button class="btn" data-pick="${esc(n.s)}">Use</button></td></tr>`).join('') || '<tr><td colspan="3">Press Scan to see the networks around the sensor.</td></tr>'}</tbody></table></div>
+    <form id="wf" class="wform" style="margin-top:14px;display:grid;gap:10px" autocomplete="off">
+      <label>Wi-Fi name<input id="wn" required maxlength="32" autocomplete="off" spellcheck="false"></label>
+      <label>Password<input id="wp" type="password" maxlength="63" autocomplete="new-password" placeholder="Leave empty for an open network"></label>
+      <div class="row"><button class="btn primary" data-now="1">Connect now</button><button class="btn" data-now="0">Save for later</button></div>
+      <p class="sub">Connect now tries the network straight away. If it fails, the sensor goes back to the network it was on, so it never gets lost. Save for later stores it for when the sensor is moved there, for example a hotspot at Satria.</p>
+      <div class="note err" id="werr" role="alert"></div></form></section>
+    <section class="card"><div class="head"><h2>Saved on the sensor</h2></div>
+    <div class="tscroll"><table><tbody>${saved.map((s, i) => `<tr><td>${esc(s)}${i === 0 ? ' <span class="sub">(built into the firmware)</span>' : ''}</td><td class="num">${i === 0 ? '' : `<button class="btn" data-forget="${esc(s)}">Forget</button>`}</td></tr>`).join('') || '<tr><td>The sensor reports this after its next upload.</td></tr>'}</tbody></table></div>
+    <p class="sub">When its network drops, the sensor joins the strongest saved network in range.</p>
+    <div class="head" style="margin-top:18px"><h2>Update the firmware</h2></div>
+    <form id="uf" style="display:grid;gap:10px">
+      <label>Firmware file (.bin)<input id="ub" type="file" accept=".bin" required></label>
+      <label>Version<input id="uv" maxlength="20" placeholder="for example 2.4.1"></label>
+      <button class="btn primary">Upload and install</button>
+      <p class="sub">In Arduino IDE use Sketch, Export Compiled Binary, and choose <b>odour_node.ino.bin</b> (not the merged file). The sensor downloads it, checks it, installs it and restarts. If anything goes wrong it keeps the old firmware.</p>
+      <div class="note err" id="uerr" role="alert"></div></form></section></div>`;
+  if ($('#wd')) $('#wd').onchange = e => { wifiDev = e.target.value; wifi(); };
+  $('#wscan').onclick = async () => { const was = d.wifi_scan_at; await rpc('admin_device_command', { p_device: d.id, p_command: { cmd: 'scan' } }, true); waitFor(x => x.wifi_scan_at && x.wifi_scan_at !== was, 'Scanning for Wi-Fi.'); };
+  app.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { $('#wn').value = b.dataset.pick; $('#wp').focus(); });
+  let now = true;
+  app.querySelectorAll('#wf [data-now]').forEach(b => b.onclick = () => { now = b.dataset.now === '1'; });
+  $('#wf').onsubmit = async e => {
+    e.preventDefault();
+    const ssid = $('#wn').value, pass = $('#wp').value;
+    try { await rpc('admin_device_command', { p_device: d.id, p_command: { cmd: 'wifi_add', ssid, pass, now } }, true); }
+    catch (err) { $('#werr').textContent = err.message || 'Could not send.'; return; }
+    waitFor(x => x.last_report_at, now ? `Asking the sensor to join ${ssid}.` : `Saving ${ssid} on the sensor.`);
+  };
+  app.querySelectorAll('[data-forget]').forEach(b => b.onclick = async () => {
+    if (!confirm(`Remove ${b.dataset.forget} from the sensor?`)) return;
+    await rpc('admin_device_command', { p_device: d.id, p_command: { cmd: 'wifi_forget', ssid: b.dataset.forget } }, true);
+    waitFor(x => x.last_report_at, `Removing ${b.dataset.forget}.`);
+  });
+  $('#uf').onsubmit = async e => {
+    e.preventDefault();
+    const f = $('#ub').files[0], err = m => { $('#uerr').textContent = m; };
+    if (!f) return;
+    const buf = await f.arrayBuffer(), head = new Uint8Array(buf, 0, 1)[0];
+    if (head !== 0xE9) return err('This is not an ESP32 firmware file. Choose odour_node.ino.bin.');
+    if (f.size > 1310720) return err('This file is the merged image or too big. Choose odour_node.ino.bin, not the merged file.');
+    if (C.DEMO_DATA || !C.SUPABASE_URL) return err('Firmware upload needs the real database.');
+    if (!confirm(`Install ${f.name} (${Math.round(f.size / 1024)} KB) on ${d.id}? It restarts afterwards.`)) return;
+    err('');
+    try {
+      const sha = await sha256Hex(buf), path = `${d.id}-${Date.now()}.bin`;
+      const H = { apikey: C.SUPABASE_KEY, Authorization: 'Bearer ' + token() };
+      const up = await fetch(`${C.SUPABASE_URL}/storage/v1/object/firmware/${path}`, { method: 'POST', headers: { ...H, 'Content-Type': 'application/octet-stream' }, body: buf });
+      if (!up.ok) throw new Error('Upload failed (' + up.status + ').');
+      const sg = await fetch(`${C.SUPABASE_URL}/storage/v1/object/sign/firmware/${path}`, { method: 'POST', headers: { ...H, 'Content-Type': 'application/json' }, body: JSON.stringify({ expiresIn: 3600 }) });
+      const link = (await sg.json()).signedURL;
+      if (!sg.ok || !link) throw new Error('Could not create the download link.');
+      await rpc('admin_device_command', { p_device: d.id, p_command: { cmd: 'update', url: `${C.SUPABASE_URL}/storage/v1${link}`, sha256: sha, version: $('#uv').value } }, true);
+      const was = d.firmware;
+      waitFor(x => (x.last_report_at && /fail/i.test(x.last_report || '')) || (x.firmware && x.firmware !== was), 'Sending the update. The sensor downloads it, restarts and warms up for a minute.');
+    } catch (ex) { err(ex.message); }
+  };
 }
 // Click the map to put the chosen location's pin on its real spot.
 function placePicker() {
